@@ -66,14 +66,14 @@
     "#,,,,,,,,,,,,,,,,,,,,,,,p,,#",
     "#,,w,,,,dd,,,,,,,,dd,,,,,,,#",
     "#,,,,,,,,,,,,,,,,,,,,,,,,,,#",
-    "#,,N,,,,,,,,,P,,,,,,,,,,U,,#",
+    "#,,N,,,,,,,,,P,,,,,,,,,,,,,#",
     "#,,,,,,,,,,,,,,,,,,,,,,,,,,#",
     "#,,,,,,,dd,,,,,,,,dd,,,,,,,#",
     "#,,,,,,,,,,,,,,,,,,,,,,,,,,#",
     "#f,,,,kk,,,,,,,,,,,,kk,,,,f#",
     "############################"
   ],
-  "legend_note": "# wall, ,/. floor, g glass, d desk, k/h partition, t table, x server rack, p printer, w water cooler, f filing cabinet, c cables, o chair, P player start, G golden computer, E elevator, R red door candidate, X exit, C chest, K boss, $ shop, B blacksmith, N enchanter, U upgrades, 1-9 encounters",
+  "legend_note": "# wall, ,/. floor, g glass, d desk, k/h partition, t table, x server rack, p printer, w water cooler, f filing cabinet, c cables, o chair, P player start, G golden computer, E elevator, R red door candidate, X exit, C chest, K boss, $ shop, B blacksmith, N upgrades desk, 1-9 encounters",
   "computers": [
     {
       "id": "lobby_terminal",
@@ -112,23 +112,12 @@
     "N": {
       "tab": "enchant",
       "name": "Software Licensing",
-      "title": "ENCHANTMENTS",
+      "title": "UPGRADES",
       "npc": {
         "body": 4,
         "palette": 7,
         "hair": 3,
         "face": 1
-      }
-    },
-    "U": {
-      "tab": "growth",
-      "name": "HR Development",
-      "title": "PERFORMANCE",
-      "npc": {
-        "body": 0,
-        "palette": 5,
-        "hair": 2,
-        "face": 5
       }
     }
   },

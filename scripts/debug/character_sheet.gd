@@ -92,8 +92,20 @@ func _spawn(list: Array, cols: int, spacing: float, on_floor: bool, turn: float)
 		var row := i / cols
 		v.position = Vector3(x, 0, row * spacing) if on_floor else Vector3(x, -row * ROW_H, 0)
 		v.rotation.y = PI + turn
-		if app.get("equip", false):
-			v.set_equipment({"id": "intern_shortsword", "plus": 0}, {"id": "business_casual_mail", "plus": 0}, {})
+		if app.has("equip"):
+			# even slots wear a full Root set, odd slots a basic set at rising tiers
+			var roots := [["knotted_coif", "cablemail_hauberk", "spool_chausses", "plug_and_play_boots", "alt_f4"],
+				["heatsink_great_helm", "motherboard_cuirass", "ribbon_cable_greaves", "capacitor_sabatons", "server_rack_maul"],
+				["bluescreen_helm", "glitch_hauberk", "segfault_greaves", "null_boots", "zero_latency"],
+				["write_protect_coif", "floppy_scalemail", "three_half_inch_tassets", "backup_boots", "patch_lash"],
+				["fan_visor", "radiator_cuirass", "coolant_greaves", "thermal_paste_boots", "surge_protector"]]
+			var basics := [["squires_coif", "squires_gambeson", "squires_chausses", "squires_boots", "arming_sword"],
+				["kettle_hat_patched", "hauberk_patched", "mail_chausses_patched", "riveted_boots_patched", "battle_axe_patched"],
+				["great_helm_overclocked", "cuirass_overclocked", "greaves_overclocked", "sabatons_overclocked", "halberd_overclocked"],
+				["kettle_hat", "hauberk_overclocked", "greaves", "riveted_boots_overclocked", "scythe_patched"],
+				["squires_coif_overclocked", "cuirass", "mail_chausses_overclocked", "sabatons_patched", "flail_overclocked"]]
+			var s: Array = (roots if i % 2 == 0 else basics)[(i / 2) % 5]
+			v.set_gear({"helmet": {"id": s[0]}, "chest": {"id": s[1]}, "legs": {"id": s[2]}, "boots": {"id": s[3]}, "weapon": {"id": s[4]}})
 		match str(app.get("mood", "")):
 			"blink":
 				v._face_mat.set_shader_parameter("blink", 1.0)

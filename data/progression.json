@@ -1,19 +1,24 @@
 {
-  "_doc": "PROGRESSION. xp needed for next level = base * growth^(level-1). Each level grants per_level stats and points_per_level DATA Points (spent on enchantments and Performance upgrades). stat_upgrades are bought at the Performance station: cost = gold_base * gold_growth^rank gold + 'points' DATA Points, and rank N requires DATA level 1 + N * level_step.",
+  "_doc": "PROGRESSION (Minecraft Dungeons style). xp needed for next level = base * growth^(level-1). Levels grant NO stats: each one only gives points_per_level Upgrade Points (spent at Software Licensing). All character power comes from gear: every item instance has a Power that scales its stats by (1 + power.stat_per_power * (power - 1)); the player's Power is the average Power of equipped gear. Drops roll around the player's Power (power.drop_spread), and enemies scale to it (power.enemy_*_per_power, reward_per_power).",
   "max_level": 50,
   "xp_curve": {"base": 40, "growth": 1.32},
   "points_per_level": 2,
   "base_stats": {
     "max_hp": 100, "defense": 0, "damage_pct": 0, "crit_chance": 0, "crit_mult_bonus": 0, "move_speed": 6.5, "move_speed_pct": 0,
-    "hp_regen": 0.6, "block_chance": 0, "data_gain_pct": 0, "gold_gain_pct": 0, "cooldown_pct": 0, "loot_luck": 0, "pickup_radius": 5.0, "attack_speed_pct": 0
+    "hp_regen": 0.6, "block_chance": 0, "data_gain_pct": 0, "gold_gain_pct": 0, "cooldown_pct": 0, "loot_luck": 0, "pickup_radius": 5.0, "attack_speed_pct": 0, "proc_damage_pct": 0, "unique_find": 0, "rare_find": 0, "drop_rate": 0
   },
-  "per_level": {"max_hp": 10, "damage_pct": 0.04, "defense": 0.5},
-  "starting_kit": {"gold": 75, "items": ["intern_shortsword", "business_casual_mail"], "equip": true},
+  "corrupted": {"_doc": "Any normal enemy can spawn corrupted: chance = base_chance + per_corruption * the floor's corruption at its spawn (never in safe levels). Corrupted enemies get the multipliers below and drop Corrupted Gold (amount range, times Clearance/Power reward scaling).", "base_chance": 0.06, "per_corruption": 0.22, "hp_mult": 2.0, "damage_mult": 1.45, "speed_mult": 1.15, "armor_bonus": 0.1, "reward_mult": 1.6, "corrupted_gold": [2, 4]},
+  "power": {"stat_per_power": 0.1, "drop_spread": [-1, 2], "enemy_hp_per_power": 0.12, "enemy_damage_per_power": 0.09, "reward_per_power": 0.06},
+  "starting_kit": {"gold": 75, "items": ["arming_sword", "squires_coif", "squires_gambeson", "squires_chausses", "squires_boots"], "equip": true},
   "rarities": {
-    "common": {"name": "COMMON", "color": "#b8b09c"},
-    "special": {"name": "SPECIAL", "color": "#3f9cf0"},
-    "unique": {"name": "UNIQUE", "color": "#f0a020"}
+    "_doc": "Data-driven rarity ladder (add a rarity here and in loot_tables.json). Spec names: common = Stock, rare = Patched, special = Overclocked, unique = Root. stat_mult scales base stats; passives = how many passive abilities an item rolls (passives.json); price_mult scales shop prices; order sorts inventories (0 = best). Root items are fused, have their own models and carry a unique effect.",
+    "common": {"name": "STOCK", "color": "#a9a294", "stat_mult": 1.0, "passives": 0, "price_mult": 1.0, "order": 3},
+    "rare": {"name": "PATCHED", "color": "#3aa55d", "stat_mult": 1.1, "passives": 1, "price_mult": 1.6, "order": 2},
+    "special": {"name": "OVERCLOCKED", "color": "#3f9cf0", "stat_mult": 1.2, "passives": 2, "price_mult": 2.6, "order": 1},
+    "unique": {"name": "ROOT", "color": "#f0a020", "stat_mult": 1.3, "passives": 2, "price_mult": 4.5, "order": 0}
   },
+  "tiers": {"_doc": "Basic items (\"tiers\": true in item files) expand into these variants; Root items are authored separately.", "common": {"prefix": "", "suffix": ""}, "rare": {"prefix": "Patched ", "suffix": "_patched"}, "special": {"prefix": "Overclocked ", "suffix": "_overclocked"}},
+  "loot_modifiers": {"_doc": "Caps for gear bonuses that improve loot. unique_find adds to the Root chance (absolute), rare_find multiplies the chance of Patched-or-better, drop_rate multiplies the item drop chance. Caps keep Root gear rare.", "max_unique_add": 0.03, "max_unique_mult": 2.0, "max_rare_find": 0.5, "max_drop_rate": 0.6},
   "stat_names": {
     "max_hp": {"name": "Max HP", "pct": false},
     "defense": {"name": "Defense", "pct": false},
@@ -24,24 +29,19 @@
     "hp_regen": {"name": "HP Regen /s", "pct": false},
     "block_chance": {"name": "Block Chance", "pct": true},
     "data_gain_pct": {"name": "DATA Gain", "pct": true},
-    "gold_gain_pct": {"name": "GOLD Gain", "pct": true},
+    "gold_gain_pct": {"name": "Gold Gain", "pct": true},
     "cooldown_pct": {"name": "Cooldown Reduction", "pct": true},
     "loot_luck": {"name": "Loot Luck", "pct": true},
     "pickup_radius": {"name": "Pickup Radius", "pct": false},
-    "attack_speed_pct": {"name": "Attack Speed", "pct": true}
+    "attack_speed_pct": {"name": "Attack Speed", "pct": true},
+    "proc_damage_pct": {"name": "Elemental Damage", "pct": true},
+    "unique_find": {"name": "Root Find Chance", "pct": true},
+    "rare_find": {"name": "Patched+ Find Chance", "pct": true},
+    "drop_rate": {"name": "Gear Drop Rate", "pct": true}
   },
-  "enchanting": {"slots_by_rarity": {"common": 1, "special": 2, "unique": 3}, "options_per_slot": 3, "max_level": 3, "point_cost": [1, 2, 3], "gold_cost": [0, 40, 100], "refund_on_sell": true},
-  "blacksmith": {"max_plus": 5, "cost_base": 45, "cost_growth": 1.65, "rarity_cost_mult": {"common": 1.0, "special": 1.5, "unique": 2.2}, "bonus_per_plus": 0.15},
+  "enchanting": {"slots_by_rarity": {"common": 1, "rare": 1, "special": 2, "unique": 3}, "options_per_slot": 3, "max_level": 3, "point_cost": [1, 2, 3], "corrupted_gold_cost": [0, 5, 12], "refund_on_sell": true},
+  "blacksmith": {"max_plus": 5, "cost_base": 45, "cost_growth": 1.65, "rarity_cost_mult": {"common": 1.0, "rare": 1.25, "special": 1.5, "unique": 2.2}, "bonus_per_plus": 0.15},
   "sell_ratio": 0.35,
-  "stat_upgrades": [
-    {"id": "vitality", "name": "Wellness Program", "description": "+15 Max HP per rank.", "stats": {"max_hp": 15}, "max_rank": 10, "gold_base": 50, "gold_growth": 1.4, "points": 1, "level_step": 1},
-    {"id": "power", "name": "Assertiveness Training", "description": "+6% damage per rank.", "stats": {"damage_pct": 0.06}, "max_rank": 10, "gold_base": 70, "gold_growth": 1.45, "points": 1, "level_step": 1},
-    {"id": "agility", "name": "Ergonomic Footwear", "description": "+5% move speed per rank.", "stats": {"move_speed_pct": 0.05}, "max_rank": 5, "gold_base": 60, "gold_growth": 1.5, "points": 1, "level_step": 2},
-    {"id": "precision", "name": "Attention to Detail", "description": "+3% critical chance and +10% crit damage per rank.", "stats": {"crit_chance": 0.03, "crit_mult_bonus": 0.1}, "max_rank": 8, "gold_base": 80, "gold_growth": 1.5, "points": 1, "level_step": 1},
-    {"id": "plating", "name": "Thick Skin Seminar", "description": "+3 Defense per rank.", "stats": {"defense": 3}, "max_rank": 10, "gold_base": 55, "gold_growth": 1.4, "points": 1, "level_step": 1},
-    {"id": "compression", "name": "DATA Compression", "description": "+8% DATA and GOLD gained per rank.", "stats": {"data_gain_pct": 0.08, "gold_gain_pct": 0.08}, "max_rank": 5, "gold_base": 90, "gold_growth": 1.6, "points": 1, "level_step": 2},
-    {"id": "time_management", "name": "Time Management Course", "description": "-5% cooldowns and +4% attack speed per rank.", "stats": {"cooldown_pct": 0.05, "attack_speed_pct": 0.04}, "max_rank": 5, "gold_base": 100, "gold_growth": 1.6, "points": 1, "level_step": 2}
-  ],
   "clearance": {"enemy_hp_per_tier": 0.45, "enemy_damage_per_tier": 0.3, "reward_per_tier": 0.35, "max_tier": 10},
   "titles": ["Intern", "Junior Associate", "Associate", "Senior Associate", "Team Lead", "Supervisor", "Manager", "Senior Manager", "Director", "Vice President"]
 }

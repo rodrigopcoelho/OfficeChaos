@@ -70,7 +70,7 @@ You need **Godot 4.7**; the standard build is enough because the project is pure
    ```bash
    /Applications/Godot.app/Contents/MacOS/Godot --path .
    ```
-4. To run the automated play-through test (92 PASS/FAIL checks covering every system, including simulated controller input), use:
+4. To run the automated play-through test (108 PASS/FAIL checks covering every system, including simulated controller input), use:
    ```bash
    /Applications/Godot.app/Contents/MacOS/Godot --headless --path . -- --qa
    ```
@@ -91,8 +91,9 @@ The controller layout follows **Minecraft Dungeons II**. The game switches autom
 | Aim | Mouse | Movement direction, with **aim assist** toward the nearest virus ahead |
 | Attack (hold) | Left mouse | X |
 | Dodge roll (invulnerable) | Right mouse | LB, or **flick the right stick** in any direction |
+| Jump (attack mid-air for a **Slam Impact**) | Space | A |
 | Weapon special ability | Q | Y |
-| Interact | E | A |
+| Interact | E | B |
 | Inventory / equipment | I | D-pad Up |
 | Network map | M | View |
 | Pause | Esc | Menu |
@@ -133,8 +134,8 @@ Measured on the Intel Iris Plus MacBook (Compatibility renderer, uncapped, worst
 ## The loop
 
 1. Create a character on the onboarding form: name, body type, badge-photo face, hairstyle, palette and save slot.
-2. Start in **The Lobby**. Its four staffed desks are Procurement (shop), the IT Hardware Forge (blacksmith), Software Licensing (enchantments) and HR Development (permanent upgrades).
-3. Take the elevator to **Floor 7**. Fight corrupted processes, absorb DATA, collect GOLD and loot equipment drops. Walking up to a golden terminal unlocks it.
+2. Start in **The Lobby**. Its three staffed desks are Procurement (shop), the IT Hardware Forge (blacksmith) and Software Licensing (**Upgrades**).
+3. Take the elevator to **Floor 7**. Fight corrupted processes, absorb DATA, collect Gold and loot equipment drops. Purple-crowned **corrupted** viruses are tougher and drop **Corrupted Gold**. Walking up to a golden terminal unlocks it.
 4. Find the **red meeting room door**. It is a random one of four candidates each visit. Accept the invite to enter **Server Room B**.
 5. Fight through the dungeon and an elite room to **THE REGIONAL MANAGER**, a two-phase boss with telegraphed slams, memo barrages, charges, spirals, corrupted floor zones and summons.
 6. Claim the Performance Bonus chests and leave through the Emergency Exit. Each boss kill raises your **Security Clearance**, which makes enemies stronger and rewards bigger.
@@ -145,11 +146,12 @@ Measured on the Intel Iris Plus MacBook (Compatibility renderer, uncapped, worst
 ```
 data/                 ← all editable content (JSON)
   manifest.json       which item / level files are loaded
-  items/weapons.json  14 weapons   items/armor.json 5 armor   items/accessories.json 5
-  enchantments.json   16 enchantments (I–III)
+  items/weapons.json  17 basic weapons (x3 tiers) + 17 Root   items/armor.json 12 basic armor pieces (x3) + 20 Root   items/accessories.json 5
+  passives.json       passive abilities rolled onto gear by rarity
+  enchantments.json   16 upgrades (I–III), shown in game as "Upgrades"
   enemies.json        5 enemy types        bosses.json  boss stats, phases, attack params
-  loot_tables.json    drop chances & rarity weights   shop.json stock pool & prices
-  progression.json    XP curve, level gains, upgrade costs, blacksmith, rarities
+  loot_tables.json    per-source drop chances, rarity % per game stage   shop.json rarity-weighted catalogue
+  progression.json    XP curve, Power scaling, corrupted enemies, upgrade costs, blacksmith, rarities
   abilities.json      Q specials           appearance.json bodies/faces/hair/palettes
   dungeons.json       red-door destinations
   levels/*.json       ASCII room layouts + theme, terminals, exits, encounters
@@ -202,9 +204,24 @@ Animated limbs use the groups `leg_l`, `leg_r`, `arm_l`, `arm_r` and `head`. The
   - Extras: `glasses` (`round`, `square`), `blush`, `freckles`, `bags`.
 - Run `-- --chars` to see the result.
 
-**Change drop rates.** Edit `loot_tables.json`.
+**Change drop rates.** Edit `loot_tables.json`. Every source (enemy tiers, chests, the boss) has rarity percentages for the early / mid / late game (picked from your gear Power); each block must add up to 100.
 
-**Add upgrade levels.** Edit `stat_upgrades` in `progression.json`.
+### Items, rarities and icons
+
+- **Rarities** (`progression.json` → `rarities`): **Stock** (common, 100 % stats, 0 passives), **Patched** (rare, 110 %, 1), **Overclocked** (special, 120 %, 2) and **Root** (unique, 130 %, 2 passives + a unique effect). Add a rarity there and in the loot tables; nothing else is hard-coded.
+- **Basic items** have `"tiers": true` and expand into Stock / Patched / Overclocked variants (`<id>`, `<id>_patched`, `<id>_overclocked`). Patched and Overclocked models get tape / patches and glowing trim automatically on every part marked with a `"role"`.
+- **Root items** are fused uniques with their own models. `"base"` names the basic item they're built on (they inherit its stats) and armor Root pieces carry a `"set"`: Cablemail, Mainframe Plate, Kernel Panic, Floppy Scale, Liquid-Cooled.
+- **Item fields:** `id`, `name`, `slot` (type), `rarity`, base stats, `min_level`, `drop_sources` (enemy / chest / boss), `effects` (unique effects), `visual` (the 3D model). Passive ability ids are rolled per drop from `passives.json`.
+- **Loot bonuses:** passives like Lucky (+% Patched or better), Root Access (+% Root) and Scavenger (+% drop rate) shift the odds, capped by `progression.loot_modifiers`.
+- **2D icon art:** each item's inventory icon is baked from its 3D model into `assets/icons/<id>.png` (ink outline + drop shadow). Re-bake after changing a model, then re-import (both windowed / headless respectively):
+
+```bash
+/Applications/Godot.app/Contents/MacOS/Godot --path . -- --icons
+```
+
+  A contact sheet of every icon is saved to `user://icon_sheet.png`.
+
+**Tune progression.** In `progression.json`: `power` (how much each Power point adds to gear and to enemies, and the drop spread), `corrupted` (spawn chance and stat multipliers of corrupted enemies, Corrupted Gold drops) and `enchanting.corrupted_gold_cost` (what levelling an Upgrade costs).
 
 **Edit or add a level or dungeon.**
 1. Copy `data/levels/dungeon_server_room.json`, change the `id` and edit the `map` rows.
@@ -231,7 +248,7 @@ Animated limbs use the groups `leg_l`, `leg_r`, `arm_l`, `arm_r` and `head`. The
    | `X` | exit |
    | `C` | reward chest |
    | `K` | boss |
-   | `$` `B` `N` `U` | stations |
+   | `$` `B` `N` | stations |
    | `1`–`9` | encounter markers, defined in `encounters` |
 
 3. Add the file to `manifest.json`.
@@ -244,14 +261,14 @@ Animated limbs use the groups `leg_l`, `leg_r`, `arm_l`, `arm_r` and `head`. The
   - Creation options: 5 body types, 9 painted faces, 11 hairstyles (including a beret and a work-from-home hood) and 8 palettes.
   - Blinking and reaction expressions.
   - Portrait avatars in the HUD and on save slots.
-- Twin-stick combat: hit arcs, crits, knockback, hit-stop, screen shake, i-frame dodge roll, and 5 special abilities.
+- Twin-stick combat: hit arcs, crits, knockback, hit-stop, screen shake, i-frame dodge roll, jumping with a Slam Impact (bonus damage to the enemy you land on plus a knock-back shockwave), and 5 special abilities.
 - 5 virus enemy types (TROJAN.EXE, WORM.BAT, RANSOM.LOCK, SPYWARE.DLL, ROOTKIT.ADMIN) with real AI: detection, A* pathfinding, line of sight, telegraphed attacks, an aura buffer/summoner, a draining kiter and a blinking crawler.
 - A two-phase boss with 6 attack patterns, telegraphs, a phase transition and a death sequence.
-- DATA levelling with absorbed particle pickups, gold coins, and rarity-beamed loot (Common / Special / Unique).
-- 14 weapons across 6 weapon classes, 5 armor pieces and 5 accessories, with level requirements, compare tooltips and 3D-rendered icons.
-- A modular enchantment system (16 enchantments, levels I–III), blacksmith upgrades (+5), a shop with restock and selling, and 7 permanent stat upgrades.
+- Minecraft Dungeons–style progression: gear Power drives your strength, enemies scale to it, DATA levels grant Upgrade Points only. Gold and Corrupted Gold currencies, rarity-beamed loot (Common / Special / Unique).
+- 124 item variants: 17 basic weapons (swords, axes, blunt, whips, polearms, dagger, scythe) and 12 basic armor pieces in Stock / Patched / Overclocked, plus 17 Root weapons and 20 Root armor pieces in five themed sets, each with its own 3D model and baked 2D icon. Rarity-scaled stats, rolled passive abilities, Power and compare tooltips.
+- A modular Upgrades system (16 effects, levels I–III, paid with Upgrade Points and Corrupted Gold), blacksmith reforging (+5), and a shop with restock and selling.
 - Golden-terminal teleport network map, randomized red dungeon doors, and corruption that grows with distance.
-- A CubeLink corporate-messenger UI: app rail, presence card, chat-style notifications and calendar-invite dialogs.
+- A CubeLink corporate-messenger UI styled after Microsoft Teams: slate app rail, purple title bar, persona card with presence, Teams-style desktop notifications and calendar-invite dialogs.
 - Death without loss and respawn in the hub; autosave plus manual save; rebindable keyboard/mouse **and controller** bindings; audio, graphics-quality, frame-cap and VSync settings.
 - Full controller support (Minecraft Dungeons II layout) with aim assist, flick-dodge, vibration, focus-ring menu navigation and LB/RB tab switching.
 - Procedural audio, toon shading with ink outlines, flickering fluorescents and a CRT post-process.

@@ -1,9 +1,10 @@
 class_name Player
 extends CharacterBody3D
 ## The employee. Mouse & keyboard: WASD move, mouse aim, LMB attack, RMB dodge,
-## Q special, E interact. Controller (Minecraft Dungeons II layout): left stick
-## move, X attack, LB or right-stick flick dodge, Y special, A interact, with aim
-## assist toward the nearest virus in front of you.
+## Space jump, Q special, E interact. Controller (Minecraft Dungeons II layout): left
+## stick move, X attack, LB or right-stick flick dodge, A jump, Y special, B interact,
+## with aim assist toward the nearest virus in front of you.
+## Attacking mid-jump turns the landing into a Slam Impact.
 
 signal hp_changed(hp: float, max_hp: float, shield: float)
 
@@ -15,6 +16,12 @@ const MASK_DODGE := Layers.WORLD
 const SWING_DELAY := 0.06
 const ASSIST_RANGE := 8.0
 const ASSIST_ANGLE := deg_to_rad(70.0)
+const JUMP_TIME := 0.55
+const JUMP_HEIGHT := 1.15
+const SLAM_DIVE := 2.8        # how much faster you come down once a slam is queued
+const SLAM_TARGET_MULT := 2.2 # extra damage to the enemy you land on
+const SLAM_RADIUS := 3.2      # shockwave reach (plus a bit of weapon reach)
+const SLAM_WAVE_MULT := 0.9
 
 var stats: Dictionary = {}
 var hp := 100.0
@@ -58,6 +65,14 @@ var _scan_t := 0.0
 var _assist_t := 0.0
 var _hitstop_cd := 0.0
 var _pending: Array = []  # delayed hits: {"t", "kind", ...} resolved in the physics step
+var haste := 0.0          # temporary move-speed bonus (Zero Latency effect)
+var haste_t := 0.0
+var jump_k := -1.0        # 0..1 progress through a jump, < 0 on the ground
+var slam_queued := false
+
+
+func airborne() -> bool:
+	return jump_k >= 0.0
 
 
 func _ready() -> void:
@@ -135,7 +150,7 @@ func _on_stats_changed() -> void:
 
 
 func _refresh_visual() -> void:
-	visual.set_equipment(GameState.equipped("weapon"), GameState.equipped("armor"), GameState.equipped("accessory"))
+	visual.set_gear(GameState.equipped_gear())
 
 
 func _on_level_up(_level: int) -> void:
@@ -184,7 +199,7 @@ func _physics_process(delta: float) -> void:
 			collision_mask = MASK_NORMAL
 			velocity *= 0.2
 	else:
-		var spd := float(stats.get("move_speed_final", 6.5))
+		var spd := float(stats.get("move_speed_final", 6.5)) * (1.0 + haste)
 		if attack_cd > attack_cd_max * 0.45:
 			spd *= 0.55
 		velocity = velocity.lerp(move_dir * spd, 1.0 - exp(-14.0 * delta))
@@ -196,19 +211,25 @@ func _physics_process(delta: float) -> void:
 		facing = aim_dir.normalized()
 	if dodge_t <= 0.0 and dash_t <= 0.0:
 		visual.face_smooth(facing, delta, 22.0)
-	visual.animate(Vector2(velocity.x, velocity.z).length() / 6.5, delta)
+	visual.animate(0.0 if airborne() else Vector2(velocity.x, velocity.z).length() / 6.5, delta)
+	_tick_jump(delta)
 	if input_enabled and not _pointer_over_ui():
-		if Input.is_action_pressed("attack") and attack_cd <= 0.0 and dodge_t <= 0.0 and dash_t <= 0.0:
+		if Input.is_action_pressed("attack") and airborne() and not slam_queued:
+			_queue_slam()
+		elif Input.is_action_pressed("attack") and attack_cd <= 0.0 and dodge_t <= 0.0 and dash_t <= 0.0 and not airborne():
 			attack()
-		if Input.is_action_just_pressed("dodge"):
+		if Input.is_action_just_pressed("dodge") and not airborne():
 			dodge(move_dir)
+	if input_enabled and Input.is_action_just_pressed("jump"):
+		jump()
 	if input_enabled:
 		var flick := Controls.consume_flick()
 		if flick != Vector2.ZERO:
 			dodge(Vector3(flick.x, 0, flick.y))
 		if Input.is_action_just_pressed("special"):
 			special()
-		if Input.is_action_just_pressed("interact") and interact_target != null and is_instance_valid(interact_target):
+		var ui_blocks: bool = GameState.ui != null and Time.get_ticks_msec() < GameState.ui.interact_block_until
+		if Input.is_action_just_pressed("interact") and not ui_blocks and interact_target != null and is_instance_valid(interact_target):
 			interact_target.interact(self)
 	_scan_t -= delta
 	if _scan_t <= 0.0:
@@ -222,6 +243,9 @@ func _tick_timers(delta: float) -> void:
 	dodge_cd = maxf(0.0, dodge_cd - delta)
 	invuln = maxf(0.0, invuln - delta)
 	_hitstop_cd = maxf(0.0, _hitstop_cd - delta)
+	haste_t = maxf(0.0, haste_t - delta)
+	if haste_t <= 0.0:
+		haste = 0.0
 	since_hurt += delta
 	for k in buffs.keys():
 		buffs[k].time -= delta
@@ -350,6 +374,11 @@ func add_buff(buff_name: String, value: float, duration: float) -> void:
 	buffs[buff_name] = {"value": value, "time": duration}
 
 
+func add_haste(value: float, duration: float) -> void:
+	haste = maxf(haste, value)
+	haste_t = maxf(haste_t, duration)
+
+
 func attack() -> void:
 	var w: Dictionary = stats.get("weapon", StatCalc.FISTS)
 	var aspd := float(w.get("attack_speed", 1.5)) * (1.0 + float(stats.get("attack_speed_pct", 0.0)))
@@ -372,6 +401,72 @@ func on_hit_landed(crit: bool) -> void:
 		if _hitstop_cd <= 0.0:
 			_hitstop_cd = 0.12
 			GameState.world.hitstop(0.05 if crit else 0.03)
+
+
+func jump() -> void:
+	if airborne() or dodge_t > 0.0 or dash_t > 0.0 or dead:
+		return
+	jump_k = 0.0
+	slam_queued = false
+	visual.hop()
+	Audio.play("dodge", -6.0, 0.1)
+	Fx.burst(global_position + Vector3(0, 0.15, 0), Color(0.9, 0.9, 1.0), 6, 2.0, 0.1, 0.3, 0.0, 1.0)
+
+
+func _tick_jump(delta: float) -> void:
+	## The hop is purely visual (the body stays on the floor plane for collision and
+	## pathing); a parabola lifts the character, and a queued slam dives it back down.
+	if not airborne():
+		return
+	jump_k += delta / JUMP_TIME * (SLAM_DIVE if slam_queued and jump_k >= 0.35 else 1.0)
+	if jump_k >= 1.0:
+		jump_k = -1.0
+		visual.position.y = 0.0
+		visual.land(slam_queued)
+		if slam_queued:
+			slam_queued = false
+			_resolve_slam()
+		else:
+			Fx.burst(global_position + Vector3(0, 0.1, 0), Color(0.9, 0.9, 1.0), 5, 1.5, 0.08, 0.25, 0.0, 1.0)
+		return
+	visual.position.y = 4.0 * JUMP_HEIGHT * jump_k * (1.0 - jump_k)
+
+
+func _queue_slam() -> void:
+	slam_queued = true
+	# hang for a beat at the apex if still rising, then come down hard
+	jump_k = maxf(jump_k, 0.35)
+	visual.swing(1.0, 90.0, 0.45, "chop")
+	Audio.play("swing", 0.0, 0.1)
+
+
+func _resolve_slam() -> void:
+	## Slam Impact: the enemy you land on takes extra damage; a shockwave hurts and
+	## throws back everything around you.
+	var w: Dictionary = stats.get("weapon", StatCalc.FISTS)
+	var reach := float(w.get("range", 2.0))
+	var target: Enemy = null
+	var best := INF
+	# the enemy you come down on: the closest one within weapon reach, any direction
+	for e in Combat.enemies_in_radius(global_position, reach + 0.6):
+		var d: float = global_position.distance_to(e.global_position)
+		if d < best:
+			best = d
+			target = e
+	if target != null:
+		Combat.player_strike(self, target, SLAM_TARGET_MULT, {"knockback_mult": 1.6, "slam": true})
+	var r := SLAM_RADIUS + reach * 0.25
+	for e in Combat.enemies_in_radius(global_position, r):
+		if e != target:
+			Combat.player_strike(self, e, SLAM_WAVE_MULT, {"knockback_mult": 3.0, "slam": true})
+	attack_cd = maxf(attack_cd, 0.25)
+	invuln = maxf(invuln, 0.15)
+	Audio.play("slam")
+	GameState.world.add_shake(0.55)
+	Fx.ring(global_position, r, Color("#ffd75e"), 0.4, 0.35)
+	Fx.ring(global_position, r * 0.55, Color(1, 1, 1), 0.25, 0.25)
+	Fx.burst(global_position + Vector3(0, 0.2, 0), Color("#d6ccae"), 26, 7.0, 0.16, 0.55)
+	Fx.text(global_position + Vector3(0, 2.4, 0), "SLAM!", Color("#ffd75e"), 0.7)
 
 
 func dodge(move_dir: Vector3) -> void:
@@ -542,6 +637,9 @@ func die() -> void:
 	_pending.clear()
 	if GameState.ui:
 		GameState.ui.set_prompt("")
+	jump_k = -1.0
+	slam_queued = false
+	visual.position.y = 0.0
 	visual.die()
 	Audio.play("death")
 	Fx.burst(global_position + Vector3(0, 1, 0), Color("#ff3a3a"), 40, 6.0, 0.14, 1.0)

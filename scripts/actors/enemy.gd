@@ -58,6 +58,8 @@ var height := 1.8
 var float_h := 0.0
 var aura_ring: MeshInstance3D
 var move_blend := 0.0  # smoothed walk amount (knockback no longer jerks the legs)
+var corrupted := false  # a stronger variant that drops Corrupted Gold (make_corrupted)
+var _corrupt_fx: Node3D
 var _hit_tween: Tween
 
 
@@ -71,9 +73,13 @@ func setup_from_def(d: Dictionary, level_mult: float, clearance_tier: int) -> vo
 	def = d
 	tier = clearance_tier
 	var cl: Dictionary = DB.progression.get("clearance", {})
-	var hp_scale := level_mult * (1.0 + float(cl.get("enemy_hp_per_tier", 0.45)) * tier)
-	var dmg_scale := level_mult * (1.0 + float(cl.get("enemy_damage_per_tier", 0.3)) * tier)
-	reward_mult = level_mult * (1.0 + float(cl.get("reward_per_tier", 0.35)) * tier)
+	# Difficulty follows the player's gear Power (Minecraft Dungeons style) on top of
+	# the level's base difficulty and the Security Clearance tier.
+	var pw: Dictionary = DB.progression.get("power", {})
+	var p := GameState.power() - 1
+	var hp_scale := level_mult * (1.0 + float(cl.get("enemy_hp_per_tier", 0.45)) * tier) * (1.0 + float(pw.get("enemy_hp_per_power", 0.12)) * p)
+	var dmg_scale := level_mult * (1.0 + float(cl.get("enemy_damage_per_tier", 0.3)) * tier) * (1.0 + float(pw.get("enemy_damage_per_power", 0.09)) * p)
+	reward_mult = level_mult * (1.0 + float(cl.get("reward_per_tier", 0.35)) * tier) * (1.0 + float(pw.get("reward_per_power", 0.06)) * p)
 	display_name = str(def.get("name", enemy_id))
 	max_hp = float(def.get("hp", 30)) * hp_scale
 	hp = max_hp
@@ -88,6 +94,40 @@ func setup_from_def(d: Dictionary, level_mult: float, clearance_tier: int) -> vo
 	var vis: Dictionary = def.get("visual", {})
 	height = float(vis.get("height", 1.8)) * float(vis.get("scale", 1.0))
 	float_h = float(vis.get("float", 0.0))
+
+
+func make_corrupted() -> void:
+	## Turns this enemy into its corrupted variant (call before adding it to the tree).
+	var c: Dictionary = DB.progression.get("corrupted", {})
+	corrupted = true
+	max_hp *= float(c.get("hp_mult", 2.0))
+	hp = max_hp
+	damage *= float(c.get("damage_mult", 1.45))
+	speed *= float(c.get("speed_mult", 1.15))
+	armor = minf(0.6, armor + float(c.get("armor_bonus", 0.1)))
+	reward_mult *= float(c.get("reward_mult", 1.6))
+	poise *= 1.3
+	display_name = "Corrupted " + display_name
+
+
+func _build_corruption_fx() -> void:
+	## Glitch-violet aura: a spinning ground sigil, a crown shard and a slightly bigger body.
+	_corrupt_fx = Node3D.new()
+	add_child(_corrupt_fx)
+	var ring := MeshInstance3D.new()
+	ring.mesh = MeshFactory.ring_mesh(radius + 0.25, radius + 0.42, 32)
+	ring.material_override = MeshFactory.unlit_shared(Color(0.75, 0.25, 1.0, 0.7), true)
+	ring.position.y = 0.05
+	ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_corrupt_fx.add_child(ring)
+	var shard := MeshInstance3D.new()
+	shard.mesh = MeshFactory.mesh_for("gem", Vector3(0.22, 0.34, 0.22))
+	shard.material_override = MeshFactory.glow(Color("#c04bff"), 4.0)
+	shard.position.y = height + 0.3 + float_h
+	shard.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_corrupt_fx.add_child(shard)
+	visual.scale *= 1.12
+	Fx.flash(visual, Color("#c04bff"), 0.4)
 
 
 func _ready() -> void:
@@ -109,6 +149,8 @@ func _ready() -> void:
 	var vis: Dictionary = def.get("visual", {})
 	visual.scale = Vector3.ONE * float(vis.get("scale", 1.0))
 	parts = MeshFactory.build(vis.get("parts", []), visual, {}, 0.02, vis.get("groups", {}), true, true)
+	if corrupted:
+		_build_corruption_fx()
 	_build_hp_bar()
 	if def.has("aura"):
 		aura_ring = MeshInstance3D.new()
@@ -139,7 +181,8 @@ func _build_hp_bar() -> void:
 	add_child(hp_bar)
 	hp_bar.position = Vector3(0, height + 0.45 + float_h, 0)
 	hp_bar.rotation.x = CameraRig.PITCH
-	var w := 1.4 if def.get("elite", false) else 1.0
+	var tagged: bool = def.get("elite", false) or corrupted
+	var w := 1.4 if tagged else 1.0
 	var bg := MeshInstance3D.new()
 	bg.mesh = _unit_quad()
 	bg.scale = Vector3(w + 0.06, 0.16, 1.0)
@@ -152,12 +195,12 @@ func _build_hp_bar() -> void:
 	fill.mesh = _unit_quad()
 	fill.scale = Vector3(w, 0.11, 1.0)
 	fill.position.x = w * 0.5
-	var fcol := Color("#c22cff") if def.get("elite", false) else Color("#e0525a")
+	var fcol := Color("#c22cff") if tagged else Color("#e0525a")
 	fill.material_override = MeshFactory.unlit_shared(fcol, false, true, 6)
 	hp_fill.add_child(fill)
 	for mi in [bg, fill]:
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	if def.get("elite", false):
+	if tagged:
 		var l := Label3D.new()
 		l.text = display_name.to_upper()
 		l.font_size = 40
@@ -520,6 +563,9 @@ func _animate(delta: float, desired: Vector3) -> void:
 		parts.head.position.x = lerpf(parts.head.position.x, 0.0, 10.0 * delta)
 	if aura_ring:
 		aura_ring.rotation.y += delta * 0.6
+	if _corrupt_fx:
+		_corrupt_fx.rotation.y += delta * 1.4
+		_corrupt_fx.get_child(1).position.y = height + 0.3 + float_h + sin(anim_t * 3.0) * 0.08
 
 
 # ------------------------------------------------------------------ damage
@@ -587,6 +633,11 @@ func die(by_player: bool = true) -> void:
 	var gold_range: Array = def.get("gold", [1, 3])
 	var gold := int(round(randi_range(int(gold_range[0]), int(gold_range[-1])) * reward_mult))
 	GameState.world.drop_rewards(global_position, float(def.get("data", 5)) * reward_mult, gold, str(def.get("loot_table", "basic")))
+	if corrupted:
+		var cr: Array = DB.progression.get("corrupted", {}).get("corrupted_gold", [2, 4])
+		GameState.world.spawn_corrupted_gold(global_position, int(round(randi_range(int(cr[0]), int(cr[-1])) * maxf(1.0, reward_mult / 1.6))))
+		if _corrupt_fx:
+			_corrupt_fx.visible = false
 	var c := MeshFactory.col(def.get("color", "#ff4040"))
 	Audio.play("enemy_die", -2.0)
 	Fx.burst(global_position + Vector3(0, height * 0.5, 0), c, 22, 6.0, 0.15, 0.7)

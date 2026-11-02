@@ -9,12 +9,12 @@ const RAIL_ITEMS := [
 	["network", "map", "Network"],
 	["shop", "shop", "Shop"],
 	["forge", "forge", "Forge"],
-	["enchant", "enchant", "Enchant"],
-	["growth", "growth", "Growth"],
+	["enchant", "enchant", "Upgrades"],
 ]
 
 var location_label: Label
 var gold_label: Label
+var cgold_label: Label
 var points_label: Label
 var avatar_slot: Control
 var portrait: AvatarPortrait
@@ -85,6 +85,7 @@ func _ready() -> void:
 	# Picking up 25 DATA orbs fires 25 signals in a few frames: just mark the card
 	# dirty and rebuild it once per frame in _process.
 	GameState.gold_changed.connect(func(_g: int) -> void: _dirty = true)
+	GameState.corrupted_gold_changed.connect(func(_g: int) -> void: _dirty = true)
 	GameState.xp_changed.connect(func(_a: int, _b: int, _c: int) -> void: _dirty = true)
 	GameState.points_changed.connect(func(_p: int) -> void: _dirty = true)
 	GameState.equipment_changed.connect(func() -> void: _dirty = true)
@@ -153,7 +154,7 @@ func _rail_button(icon: String, text: String, cb: Callable) -> Button:
 
 func _build_topbar() -> void:
 	var bar := PanelContainer.new()
-	bar.add_theme_stylebox_override("panel", UIKit.sb(Color("#2d2840"), 0, 0, Color.TRANSPARENT, 8))
+	bar.add_theme_stylebox_override("panel", UIKit.sb(UIKit.C_TITLEBAR, 0, 0, Color.TRANSPARENT, 8))
 	UIKit.place(bar, 0, 0, 1, 0, 68, 0, 0, 48)
 	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(bar)
@@ -163,32 +164,46 @@ func _build_topbar() -> void:
 	app.custom_minimum_size.x = 90
 	h.add_child(app)
 	var search := PanelContainer.new()
-	search.add_theme_stylebox_override("panel", UIKit.sb(Color(1, 1, 1, 0.1), 6, 0, Color.TRANSPARENT, 10))
+	search.add_theme_stylebox_override("panel", UIKit.sb(Color("#f5f5f5"), 4, 0, Color.TRANSPARENT, 10))
 	search.custom_minimum_size = Vector2(460, 30)
 	search.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	location_label = UIKit.label("Search", 13, Color(1, 1, 1, 0.75))
+	location_label = UIKit.label("Search", 13, UIKit.C_MUTED)
 	search.add_child(location_label)
 	h.add_child(UIKit.spacer())
 	h.add_child(search)
 	h.add_child(UIKit.spacer())
 	points_label = UIKit.label("", 13, Color("#7ff0d0"), true)
 	h.add_child(points_label)
-	var coin := Panel.new()
-	coin.custom_minimum_size = Vector2(16, 16)
-	coin.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	coin.add_theme_stylebox_override("panel", UIKit.sb(UIKit.C_GOLD, 8, 2, Color("#ffe08a"), 0))
-	coin.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	h.add_child(coin)
+	h.add_child(_currency_chip(UIKit.C_GOLD, Color("#ffe08a"), "Gold"))
 	gold_label = UIKit.label("0", 16, Color("#ffd66b"), true)
+	gold_label.tooltip_text = "Gold"
 	h.add_child(gold_label)
+	h.add_child(_currency_chip(Color("#7a2cff"), Color("#ff4fd8"), "Corrupted Gold"))
+	cgold_label = UIKit.label("0", 16, Color("#d9a6ff"), true)
+	h.add_child(cgold_label)
 	var pad := Control.new()
 	pad.custom_minimum_size.x = 8
 	h.add_child(pad)
 
 
+func _currency_chip(fill: Color, rim: Color, tip: String) -> Panel:
+	var coin := Panel.new()
+	coin.custom_minimum_size = Vector2(16, 16)
+	coin.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	coin.add_theme_stylebox_override("panel", UIKit.sb(fill, 8, 2, rim, 0))
+	coin.tooltip_text = tip
+	coin.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return coin
+
+
 func _build_profile_card() -> void:
 	var card := PanelContainer.new()
-	card.add_theme_stylebox_override("panel", UIKit.sb(Color(0.13, 0.12, 0.17, 0.88), 12, 1, Color(1, 1, 1, 0.08), 12))
+	# Teams persona card: white, 4 px corners, soft shadow.
+	var card_sb := UIKit.sb(Color(1, 1, 1, 0.97), 4, 1, UIKit.C_BORDER, 12)
+	card_sb.shadow_color = Color(0, 0, 0, 0.25)
+	card_sb.shadow_size = 8
+	card_sb.shadow_offset = Vector2(0, 2)
+	card.add_theme_stylebox_override("panel", card_sb)
 	UIKit.place(card, 0, 1, 0, 1, 84, -132, 464, -16)
 	card.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(card)
@@ -210,9 +225,9 @@ func _build_profile_card() -> void:
 	var v := UIKit.vbox(4)
 	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	h.add_child(v)
-	name_label = UIKit.label("Employee", 16, Color.WHITE, true)
+	name_label = UIKit.label("Employee", 16, UIKit.C_TEXT, true)
 	v.add_child(name_label)
-	sub_label = UIKit.label("", 12, Color(1, 1, 1, 0.6))
+	sub_label = UIKit.label("", 12, UIKit.C_MUTED)
 	v.add_child(sub_label)
 	shield_bar = UIKit.bar(Color("#ff6a5a"), 4, Color(0, 0, 0, 0))
 	v.add_child(shield_bar)
@@ -220,7 +235,7 @@ func _build_profile_card() -> void:
 	hp_holder.custom_minimum_size = Vector2(0, 18)
 	hp_holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	v.add_child(hp_holder)
-	hp_bar = UIKit.bar(UIKit.C_HP, 18, Color(1, 1, 1, 0.08))
+	hp_bar = UIKit.bar(UIKit.C_HP, 18, Color(0, 0, 0, 0.1))
 	hp_bar.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	hp_holder.add_child(hp_bar)
 	hp_text = UIKit.label("", 12, Color.WHITE, true)
@@ -232,10 +247,10 @@ func _build_profile_card() -> void:
 	data_holder.custom_minimum_size = Vector2(0, 12)
 	data_holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	v.add_child(data_holder)
-	data_bar = UIKit.bar(UIKit.C_DATA, 12, Color(1, 1, 1, 0.08))
+	data_bar = UIKit.bar(UIKit.C_DATA, 12, Color(0, 0, 0, 0.1))
 	data_bar.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	data_holder.add_child(data_bar)
-	data_text = UIKit.label("", 10, Color.WHITE, true)
+	data_text = UIKit.label("", 10, UIKit.C_TEXT, true)
 	data_text.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	data_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	data_text.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -366,7 +381,8 @@ func _refresh_profile() -> void:
 		return
 	var pr := GameState.profile
 	gold_label.text = str(int(pr.gold))
-	points_label.text = "%d DATA Points" % int(pr.points) if int(pr.points) > 0 else ""
+	cgold_label.text = str(int(pr.get("corrupted_gold", 0)))
+	points_label.text = "%d Upgrade Points" % int(pr.points) if int(pr.points) > 0 else ""
 	name_label.text = str(pr.name)
 	var lvl := int(pr.level)
 	var status := "Available"
@@ -376,17 +392,19 @@ func _refresh_profile() -> void:
 		match str(w.level.get("type", "")):
 			"dungeon": status = "Do not disturb"
 			"field": status = "Busy"
-	sub_label.text = "DATA Lv %d  ·  %s  ·  %s" % [lvl, GameState.title_for_level(lvl), status]
+	sub_label.text = "Power %d  ·  DATA Lv %d  ·  %s" % [GameState.power(), lvl, status]
 	var need := GameState.xp_needed(lvl)
 	data_bar.max_value = need
 	data_bar.value = int(pr.xp)
 	data_text.text = "DATA %d / %d" % [int(pr.xp), need]
-	var armor := GameState.equipped("armor")
-	var sig := "%s|%s|%s" % [JSON.stringify(pr.appearance), armor.get("id", ""), status]
+	var armor := GameState.equipped("chest")
+	var helmet := GameState.equipped("helmet")
+	var sig := "%s|%s|%s|%s" % [JSON.stringify(pr.appearance), armor.get("id", ""), helmet.get("id", ""), status]
 	if sig != _avatar_sig:
 		_avatar_sig = sig
-		portrait.show_profile(pr.appearance, armor)
-		var st_col := UIKit.C_OK if status == "Available" else (UIKit.C_DANGER if status == "Busy" else Color("#c22cff"))
+		portrait.show_profile(pr.appearance, armor, helmet)
+		# Teams presence: Available green, Busy / Do not disturb red.
+		var st_col := UIKit.C_OK if status == "Available" else UIKit.C_DANGER
 		status_dot.add_theme_stylebox_override("panel", UIKit.sb(st_col, 9, 2, Color.WHITE, 0))
 	var weapon := GameState.equipped("weapon")
 	var ws: Dictionary = GameState.stats.get("weapon", {})
@@ -406,7 +424,7 @@ func _refresh_profile() -> void:
 func _update_rail() -> void:
 	var w = GameState.world
 	var in_hub: bool = w != null and is_instance_valid(w) and str(w.level.get("type", "")) == "hub"
-	for t in ["shop", "forge", "enchant", "growth"]:
+	for t in ["shop", "forge", "enchant"]:
 		if rail_buttons.has(t):
 			rail_buttons[t].modulate.a = 1.0 if in_hub else 0.4
 

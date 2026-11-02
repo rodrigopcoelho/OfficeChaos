@@ -1363,6 +1363,9 @@ func spawn_enemy_near(id: String, center: Vector3, spread: float, tier: int, lev
 			break
 	var e := Enemy.new().setup(id, lm, tier)
 	e.position = pos
+	var cc: Dictionary = DB.progression.get("corrupted", {})
+	if not level.get("safe", false) and rng.randf() < float(cc.get("base_chance", 0.06)) + float(cc.get("per_corruption", 0.22)) * corruption_at(pos):
+		e.make_corrupted()
 	actors_root.add_child(e)
 	if spawn_fx and not menu_mode:
 		Fx.burst(pos + Vector3(0, 1, 0), MeshFactory.col(DB.enemies[id].get("color", "#ff4040")), 16, 5.0, 0.12, 0.5)
@@ -1412,6 +1415,15 @@ func spawn_gold(pos: Vector3, amount: int) -> void:
 		pk.global_position = Vector3(pos.x, 0, pos.z)
 
 
+func spawn_corrupted_gold(pos: Vector3, amount: int) -> void:
+	var n := clampi(amount, 1, 5)
+	for i in n:
+		# whole coins only: the remainder goes on the first ones
+		var pk := Pickup.new().setup("cgold", float(amount / n + (1 if i < amount % n else 0)))
+		pickups_root.add_child(pk)
+		pk.global_position = Vector3(pos.x, 0, pos.z)
+
+
 func drop_rewards(pos: Vector3, data: float, gold: int, table: String) -> void:
 	var flat := Vector3(pos.x, 0, pos.z)
 	var n_data := clampi(int(data / 4.0), 2, 18)
@@ -1423,7 +1435,7 @@ func drop_rewards(pos: Vector3, data: float, gold: int, table: String) -> void:
 		spawn_gold(flat, gold)
 	if GameState.has_profile():
 		var luck := float(GameState.stats.get("loot_luck", 0.0))
-		for inst in Loot.roll_table(table, int(GameState.profile.level), luck):
+		for inst in Loot.roll_table(table, int(GameState.profile.get("level", 1)), luck):
 			var it := Pickup.new().setup("item", 0.0, inst)
 			pickups_root.add_child(it)
 			it.global_position = flat

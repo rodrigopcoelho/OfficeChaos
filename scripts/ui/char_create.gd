@@ -159,7 +159,7 @@ func _refresh() -> void:
 	if preview:
 		preview.set_appearance(appearance)
 		# Just the starter sword: armor would recolour the uniform being picked.
-		preview.set_equipment({"id": "intern_shortsword", "plus": 0}, {}, {})
+		preview.set_equipment({"id": "arming_sword", "plus": 0}, {}, {})
 
 
 func _confirm() -> void:

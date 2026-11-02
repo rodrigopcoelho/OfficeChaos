@@ -85,8 +85,8 @@ func show_home() -> void:
 	qb.custom_minimum_size.y = 44
 	_content.add_child(qb)
 	_content.add_child(UIKit.spacer())
-	_content.add_child(UIKit.label("v0.1.0 demo  ·  WASD move · Mouse aim · LMB attack · RMB dodge · Q special · E interact · I inventory · M map · Esc pause", 11, Color("#8a84a0")))
-	_content.add_child(UIKit.label("Controller  ·  LS move · X attack · LB / RS flick dodge · Y special · A interact · D-pad Up inventory · View map · Menu pause", 11, Color("#8a84a0")))
+	_content.add_child(UIKit.label("v0.1.0 demo  ·  WASD move · Mouse aim · LMB attack · RMB dodge · Space jump · Q special · E interact · I inventory · M map · Esc pause", 11, Color("#8a84a0")))
+	_content.add_child(UIKit.label("Controller  ·  LS move · X attack · LB / RS flick dodge · A jump · Y special · B interact · D-pad Up inventory · View map · Menu pause", 11, Color("#8a84a0")))
 	GameState.ui.focus_default()
 
 
@@ -111,7 +111,7 @@ func show_load() -> void:
 		v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		h.add_child(v)
 		v.add_child(UIKit.label(str(s.name), 15, Color.WHITE, true))
-		v.add_child(UIKit.label("DATA Lv %d · %d GOLD · Clearance T%d · %s" % [int(s.level), int(s.gold), int(s.clearance), UIKit.time_str(float(s.play_time))], 12, Color("#b8b2cc")))
+		v.add_child(UIKit.label("DATA Lv %d · %d Gold · Clearance T%d · %s" % [int(s.level), int(s.gold), int(s.clearance), UIKit.time_str(float(s.play_time))], 12, Color("#b8b2cc")))
 		h.add_child(UIKit.button("Load", _load.bind(slot), "primary", 80))
 		h.add_child(UIKit.button("Delete", func() -> void:
 			GameState.delete_slot(slot)

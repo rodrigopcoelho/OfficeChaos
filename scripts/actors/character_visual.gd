@@ -35,7 +35,10 @@ var arm_r: Node3D
 var weapon_pivot: Node3D
 var weapon_holder: Node3D
 var armor_anchor: Node3D
+var helmet_anchor: Node3D
+var hair_node: Node3D
 var offhand: Node3D
+var _leg_len := 0.3
 var palette: Dictionary = {}
 var body_def: Dictionary = {}
 var face_def: Dictionary = {}
@@ -67,17 +70,12 @@ func build(appearance: Dictionary) -> void:
 	var hs := MeshFactory.vec3(body_def.get("head", [0.84, 0.76, 0.76]))
 	var leg_len := float(body_def.get("leg_len", 0.3))
 	_suit_color = _pc("suit")
+	_leg_len = leg_len
 	body = Node3D.new()
 	add_child(body)
-	# Legs: a trouser capsule on a chunky rounded shoe with a darker sole.
 	leg_l = _pivot(body, Vector3(-ts.x * 0.2, leg_len, 0))
 	leg_r = _pivot(body, Vector3(ts.x * 0.2, leg_len, 0))
-	var shoe := _pc("shoes")
-	for leg in [leg_l, leg_r]:
-		var pant_bottom := -leg_len + 0.15
-		_part(leg, "capsule", Vector3(0.2, 0.08 - pant_bottom, 0.21), Vector3(0, (0.08 + pant_bottom) * 0.5, 0), _pc("pants"))
-		_part(leg, "dome", Vector3(0.24, 0.17, 0.33), Vector3(0, -leg_len + 0.125, -0.04), shoe)
-		_part(leg, "box", Vector3(0.25, 0.05, 0.34), Vector3(0, -leg_len + 0.025, -0.04), shoe.darkened(0.45))
+	_build_legs(_pc("pants"), _pc("shoes"), _pc("shoes").darkened(0.45))
 	# Blazer: one mesh whose shirt, tie, lapels and badge are painted by the shader.
 	var top := leg_len + ts.y - 0.02
 	torso = MeshFactory.kit_instance("blazer", ts)
@@ -102,8 +100,10 @@ func build(appearance: Dictionary) -> void:
 	_apply_face()
 	face_mesh.material_override = _face_mat
 	head.add_child(face_mesh)
-	var hair_node := _pivot(head, face_mesh.position)
+	hair_node = _pivot(head, face_mesh.position)
 	hair_node.scale = hs
+	helmet_anchor = _pivot(head, face_mesh.position)
+	helmet_anchor.scale = hs
 	var parts: Array = (hair.get("parts", []) as Array).duplicate()
 	if not bool(hair.get("hide_ears", false)):
 		for sx in [-1.0, 1.0]:
@@ -125,7 +125,7 @@ func build(appearance: Dictionary) -> void:
 	weapon_pivot = _pivot(body, Vector3(sh_x * 0.45, sh_y - 0.16, 0))
 	weapon_holder = _pivot(weapon_pivot, Vector3(0, 0, HOLD_Z))
 	# Each limb renders as one merged mesh; the head and blazer keep their painted materials.
-	for limb in [leg_l, leg_r, arm_l, arm_r]:
+	for limb in [arm_l, arm_r]:
 		MeshBatcher.merge_children(limb)
 	_rest_pose()
 	mood = "neutral"
@@ -133,6 +133,35 @@ func build(appearance: Dictionary) -> void:
 	_blink_t = -1.0
 	_blink_in = randf_range(1.0, 4.0)
 	scale = Vector3.ONE * float(body_def.get("scale", 1.0))
+
+
+func _build_legs(pants: Color, shoe: Color, sole: Color, leg_parts: Array = [], boot_parts: Array = []) -> void:
+	## Legs: a trouser capsule on a chunky rounded shoe with a darker sole, plus the
+	## leggings' parts (relative to the knee) and the boots' parts (relative to the shoe
+	## centre), all merged into one mesh per leg. Rebuilt whenever leg gear changes.
+	var pant_bottom := -_leg_len + 0.15
+	var knee := Vector3(0, (0.08 + pant_bottom) * 0.5, 0)
+	var foot := Vector3(0, -_leg_len + 0.125, -0.04)
+	for leg in [leg_l, leg_r]:
+		for c in leg.get_children():
+			leg.remove_child(c)
+			c.queue_free()
+		_part(leg, "capsule", Vector3(0.2, 0.08 - pant_bottom, 0.21), knee, pants)
+		_part(leg, "dome", Vector3(0.24, 0.17, 0.33), foot, shoe)
+		_part(leg, "box", Vector3(0.25, 0.05, 0.34), Vector3(0, -_leg_len + 0.025, -0.04), sole)
+		for group in [[leg_parts, knee], [boot_parts, foot]]:
+			if (group[0] as Array).is_empty():
+				continue
+			var anchor := _pivot(leg, group[1])
+			MeshFactory.build(group[0], anchor, {}, LINE, {}, true, false)
+			# lift the anchored parts into the leg so the whole leg merges into one mesh
+			for mi in anchor.get_children():
+				anchor.remove_child(mi)
+				mi.position += anchor.position
+				leg.add_child(mi)
+			leg.remove_child(anchor)
+			anchor.queue_free()
+		MeshBatcher.merge_children(leg)
 
 
 func _pick(list_key: String, appearance: Dictionary, key: String) -> Dictionary:
@@ -203,6 +232,36 @@ func _rest_pose() -> void:
 	weapon_pivot.rotation = Vector3(REST_X, REST_Y, 0)
 	weapon_holder.position = Vector3(0, 0, HOLD_Z)
 	arm_r.rotation = Vector3(deg_to_rad(35), REST_Y, 0)
+
+
+func set_gear(gear: Dictionary) -> void:
+	## `gear` maps slot names (GameState.SLOTS) to item instances ({} = empty).
+	set_equipment(gear.get("weapon", {}), gear.get("chest", {}), gear.get("accessory", {}))
+	for c in helmet_anchor.get_children():
+		helmet_anchor.remove_child(c)
+		c.queue_free()
+	var helm: Dictionary = gear.get("helmet", {})
+	if not helm.is_empty():
+		MeshFactory.build(ItemUtil.def(helm).get("visual", {}).get("parts", []), helmet_anchor, {}, LINE, {}, true, true)
+	# hair (and ears) tuck under the helmet instead of poking through it
+	hair_node.visible = helm.is_empty()
+	var pants := _pc("pants")
+	var shoe := _pc("shoes")
+	var sole := shoe.darkened(0.45)
+	var leg_parts: Array = []
+	var boot_parts: Array = []
+	var legs: Dictionary = gear.get("legs", {})
+	if not legs.is_empty():
+		var lv: Dictionary = ItemUtil.def(legs).get("visual", {})
+		pants = MeshFactory.col(lv.get("color", pants))
+		leg_parts = lv.get("parts", [])
+	var boots: Dictionary = gear.get("boots", {})
+	if not boots.is_empty():
+		var bv: Dictionary = ItemUtil.def(boots).get("visual", {})
+		shoe = MeshFactory.col(bv.get("color", shoe))
+		sole = MeshFactory.col(bv.get("sole", shoe.darkened(0.45)))
+		boot_parts = bv.get("parts", [])
+	_build_legs(pants, shoe, sole, leg_parts, boot_parts)
 
 
 func set_equipment(weapon: Dictionary, armor: Dictionary, accessory: Dictionary) -> void:
@@ -390,6 +449,28 @@ func roll(dur: float) -> void:
 	_roll_tween.parallel().tween_property(head, "scale", Vector3(0.9, 0.9, 0.9), dur * 0.3).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	_roll_tween.parallel().tween_property(head, "scale", Vector3.ONE, dur * 0.4).set_delay(dur * 0.6).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	_roll_tween.tween_callback(func() -> void: body.rotation.x = 0.0)
+
+
+func hop() -> void:
+	## Jump take-off: a quick stretch, legs tucked.
+	var tw := create_tween()
+	tw.set_parallel(true)
+	tw.tween_property(leg_l, "rotation:x", 0.6, 0.12).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tw.tween_property(leg_r, "rotation:x", -0.3, 0.12).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tw.tween_property(arm_l, "rotation:z", -0.9, 0.15).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.chain().tween_property(arm_l, "rotation:z", 0.0, 0.3).set_trans(Tween.TRANS_SINE)
+
+
+func land(heavy: bool) -> void:
+	## Touch-down squash: a little bounce, a big one after a slam.
+	var k := 0.3 if heavy else 0.14
+	var tw := create_tween()
+	tw.tween_property(self, "scale", Vector3(1.0 + k, 1.0 - k, 1.0 + k) * _base_scale(), 0.06).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tw.tween_property(self, "scale", Vector3.ONE * _base_scale(), 0.28 if heavy else 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+
+
+func _base_scale() -> float:
+	return float(body_def.get("scale", 1.0))
 
 
 func die() -> void:

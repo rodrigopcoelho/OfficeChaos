@@ -15,9 +15,9 @@ func _ready() -> void:
 	ui = UIRoot.new()
 	add_child(ui)
 	var args := OS.get_cmdline_user_args()
-	for flag in ["--qa", "--bench", "--chars", "--tour"]:
+	for flag in ["--qa", "--bench", "--chars", "--tour", "--icons"]:
 		if flag in args:
-			var runner_name: String = {"--qa": "qa_runner", "--bench": "bench_runner", "--chars": "character_sheet", "--tour": "tour_runner"}[flag]
+			var runner_name: String = {"--qa": "qa_runner", "--bench": "bench_runner", "--chars": "character_sheet", "--tour": "tour_runner", "--icons": "icon_baker"}[flag]
 			add_child((load("res://scripts/debug/%s.gd" % runner_name) as GDScript).new())
 			return
 	ui.fade.modulate.a = 1.0

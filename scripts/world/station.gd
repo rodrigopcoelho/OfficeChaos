@@ -1,6 +1,6 @@
 class_name Station
 extends Interactable
-## Hub service desks (Shop, Blacksmith, Enchanting, Performance) staffed by an NPC.
+## Hub service desks (Shop, Blacksmith, Upgrades) staffed by an NPC.
 
 var tab := "shop"
 var station_name := "Desk"
@@ -46,7 +46,6 @@ func _accent() -> Color:
 		"shop": return Color("#e2aa2c")
 		"forge": return Color("#ff7a1a")
 		"enchant": return Color("#b24bff")
-		"growth": return Color("#4fd1b0")
 	return Color.WHITE
 
 
@@ -62,7 +61,7 @@ func _build_prop() -> void:
 				w.position = Vector3(0, 0.5 + i * 0.45, 0.1)
 				w.rotation_degrees = Vector3(0, 0, 90)
 				rack.add_child(w)
-				var ids := ["compliance_longsword", "budget_cut_axe", "laser_pointer_pike"]
+				var ids := ["longsword_patched", "battle_axe", "halberd_overclocked"]
 				MeshFactory.build(DB.items.get(ids[i], {}).get("visual", {}).get("parts", []), w, {}, 0.01)
 		"forge":
 			var anvil := Node3D.new()
@@ -74,9 +73,6 @@ func _build_prop() -> void:
 		"enchant":
 			for i in 4:
 				MeshFactory.shape(_prop, "gem", Vector3(0.2, 0.3, 0.2), Vector3(cos(i * PI / 2) * 0.9, 2.0, sin(i * PI / 2) * 0.5 - 0.3), Color("#b24bff"), 3.0)
-		"growth":
-			for i in 3:
-				MeshFactory.box(_prop, Vector3(0.18, 0.3 + i * 0.25, 0.18), Vector3(-1.4 + i * 0.25, 1.0 + (0.3 + i * 0.25) * 0.5, 0.3), Color("#4fd1b0"), 1.5)
 
 
 func _process(delta: float) -> void:

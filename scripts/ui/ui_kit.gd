@@ -1,23 +1,27 @@
 class_name UIKit
 extends RefCounted
-## Shared look & widgets for the "CubeLink Workspace" corporate messenger UI.
+## Shared look & widgets for the "CubeLink Workspace" corporate messenger UI, styled
+## after Microsoft Teams (classic palette: slate app bar, purple title bar, #6264A7
+## brand accent, Fluent greys and Teams presence colours).
 
-const C_RAIL := Color("#24202f")
-const C_RAIL_HI := Color("#3a3352")
-const C_BG := Color("#f2f1ed")
+const C_RAIL := Color("#33344a")
+const C_RAIL_HI := Color("#464775")
+const C_TITLEBAR := Color("#464775")
+const C_BG := Color("#f5f5f5")
 const C_PANEL := Color("#ffffff")
-const C_PANEL_ALT := Color("#ebe9e3")
-const C_BORDER := Color("#d8d5cc")
+const C_PANEL_ALT := Color("#f0f0f0")
+const C_BORDER := Color("#e1dfdd")
 const C_TEXT := Color("#252423")
-const C_MUTED := Color("#6e6b66")
-const C_ACCENT := Color("#6656c9")
-const C_ACCENT_HI := Color("#7d6ee0")
+const C_MUTED := Color("#605e5c")
+const C_ACCENT := Color("#6264a7")
+const C_ACCENT_HI := Color("#8b8cc7")
 const C_DATA := Color("#3fc4a2")
 const C_HP := Color("#e0525a")
 const C_GOLD := Color("#d99a1c")
-const C_DANGER := Color("#c8343c")
-const C_OK := Color("#3aa55d")
-const C_DARK := Color("#2d2a38")
+const C_DANGER := Color("#c4314b")
+const C_OK := Color("#92c353")
+const C_AWAY := Color("#fdb913")
+const C_DARK := Color("#292929")
 
 static var font_ui: Font
 static var font_bold: Font
@@ -59,10 +63,10 @@ static func build_theme() -> Theme:
 	var t := Theme.new()
 	t.default_font = font_ui
 	t.default_font_size = 15
-	t.set_stylebox("normal", "Button", sb(C_PANEL, 6, 1, C_BORDER, 12))
-	t.set_stylebox("hover", "Button", sb(C_PANEL_ALT, 6, 1, C_ACCENT_HI, 12))
-	t.set_stylebox("pressed", "Button", sb(C_ACCENT, 6, 1, C_ACCENT, 12))
-	t.set_stylebox("disabled", "Button", sb(Color("#e4e2dc"), 6, 1, C_BORDER, 12))
+	t.set_stylebox("normal", "Button", sb(C_PANEL, 4, 1, C_BORDER, 12))
+	t.set_stylebox("hover", "Button", sb(C_PANEL_ALT, 4, 1, C_ACCENT_HI, 12))
+	t.set_stylebox("pressed", "Button", sb(C_ACCENT, 4, 1, C_ACCENT, 12))
+	t.set_stylebox("disabled", "Button", sb(Color("#f3f2f1"), 4, 1, C_BORDER, 12))
 	t.set_stylebox("focus", "Button", StyleBoxEmpty.new())
 	t.set_stylebox("focus", "CheckBox", StyleBoxEmpty.new())
 	t.set_stylebox("focus", "HSlider", StyleBoxEmpty.new())
@@ -140,26 +144,26 @@ static func button(text: String, cb: Callable, kind: String = "default", min_w: 
 	b.custom_minimum_size = Vector2(min_w, 36)
 	match kind:
 		"primary":
-			b.add_theme_stylebox_override("normal", sb(C_ACCENT, 6, 0, Color.TRANSPARENT, 14))
-			b.add_theme_stylebox_override("hover", sb(C_ACCENT_HI, 6, 0, Color.TRANSPARENT, 14))
-			b.add_theme_stylebox_override("pressed", sb(C_ACCENT.darkened(0.2), 6, 0, Color.TRANSPARENT, 14))
+			b.add_theme_stylebox_override("normal", sb(C_ACCENT, 4, 0, Color.TRANSPARENT, 14))
+			b.add_theme_stylebox_override("hover", sb(C_ACCENT_HI, 4, 0, Color.TRANSPARENT, 14))
+			b.add_theme_stylebox_override("pressed", sb(C_ACCENT.darkened(0.2), 4, 0, Color.TRANSPARENT, 14))
 			b.add_theme_color_override("font_color", Color.WHITE)
 			b.add_theme_color_override("font_hover_color", Color.WHITE)
 			b.add_theme_font_override("font", font_bold)
 		"danger":
-			b.add_theme_stylebox_override("normal", sb(C_DANGER, 6, 0, Color.TRANSPARENT, 14))
-			b.add_theme_stylebox_override("hover", sb(C_DANGER.lightened(0.15), 6, 0, Color.TRANSPARENT, 14))
+			b.add_theme_stylebox_override("normal", sb(C_DANGER, 4, 0, Color.TRANSPARENT, 14))
+			b.add_theme_stylebox_override("hover", sb(C_DANGER.lightened(0.15), 4, 0, Color.TRANSPARENT, 14))
 			b.add_theme_color_override("font_color", Color.WHITE)
 			b.add_theme_color_override("font_hover_color", Color.WHITE)
 		"ghost":
-			b.add_theme_stylebox_override("normal", sb(Color(0, 0, 0, 0), 6, 0, Color.TRANSPARENT, 10))
-			b.add_theme_stylebox_override("hover", sb(Color(0, 0, 0, 0.06), 6, 0, Color.TRANSPARENT, 10))
-			b.add_theme_stylebox_override("pressed", sb(Color(0, 0, 0, 0.12), 6, 0, Color.TRANSPARENT, 10))
+			b.add_theme_stylebox_override("normal", sb(Color(0, 0, 0, 0), 4, 0, Color.TRANSPARENT, 10))
+			b.add_theme_stylebox_override("hover", sb(Color(0, 0, 0, 0.06), 4, 0, Color.TRANSPARENT, 10))
+			b.add_theme_stylebox_override("pressed", sb(Color(0, 0, 0, 0.12), 4, 0, Color.TRANSPARENT, 10))
 		"dark":
-			b.add_theme_stylebox_override("normal", sb(Color(1, 1, 1, 0.06), 6, 1, Color(1, 1, 1, 0.12), 14))
-			b.add_theme_stylebox_override("hover", sb(Color(1, 1, 1, 0.14), 6, 1, C_ACCENT_HI, 14))
-			b.add_theme_stylebox_override("pressed", sb(C_ACCENT, 6, 1, C_ACCENT, 14))
-			b.add_theme_stylebox_override("disabled", sb(Color(1, 1, 1, 0.02), 6, 1, Color(1, 1, 1, 0.05), 14))
+			b.add_theme_stylebox_override("normal", sb(Color(1, 1, 1, 0.06), 4, 1, Color(1, 1, 1, 0.12), 14))
+			b.add_theme_stylebox_override("hover", sb(Color(1, 1, 1, 0.14), 4, 1, C_ACCENT_HI, 14))
+			b.add_theme_stylebox_override("pressed", sb(C_ACCENT, 4, 1, C_ACCENT, 14))
+			b.add_theme_stylebox_override("disabled", sb(Color(1, 1, 1, 0.02), 4, 1, Color(1, 1, 1, 0.05), 14))
 			b.add_theme_color_override("font_color", Color("#f2f1ed"))
 			b.add_theme_color_override("font_hover_color", Color.WHITE)
 			b.add_theme_color_override("font_disabled_color", Color(1, 1, 1, 0.3))
@@ -336,6 +340,11 @@ static func item_card(inst: Dictionary, selected: bool, cb: Callable, size: floa
 		place(pl, 1, 0, 1, 0, -30, 2, -5, 20)
 		pl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 		b.add_child(pl)
+	if not d.is_empty() and badge == "":
+		# Power, Minecraft Dungeons style, in the top-left corner
+		var pw := label(str(ItemUtil.power_of(inst)), 11, C_TEXT, true)
+		place(pw, 0, 0, 0, 0, 6, 3, 40, 19)
+		b.add_child(pw)
 	if badge != "":
 		var bp := PanelContainer.new()
 		bp.add_theme_stylebox_override("panel", sb(C_ACCENT, 4, 0, Color.TRANSPARENT, 3))

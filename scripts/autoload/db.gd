@@ -10,10 +10,12 @@ var enchantments: Dictionary = {}
 var enemies: Dictionary = {}
 var bosses: Dictionary = {}
 var loot_tables: Dictionary = {}
+var loot_stages: Dictionary = {}
 var shop: Dictionary = {}
 var progression: Dictionary = {}
 var appearance: Dictionary = {}
 var abilities: Dictionary = {}
+var passives: Dictionary = {}
 var dungeons: Dictionary = {}
 var levels: Dictionary = {}
 var level_order: Array[String] = []
@@ -25,17 +27,22 @@ func _ready() -> void:
 
 func load_all() -> void:
 	manifest = read_json("manifest.json")
+	progression = read_json("progression.json")
 	items.clear()
+	var raw: Array = []
 	for f in manifest.get("item_files", []):
 		for it in read_json(str(f)).get("items", []):
-			_register(items, it, str(f))
+			raw.append([it, str(f)])
+	_build_items(raw)
+	passives = _index(read_json("passives.json").get("passives", []), "passives.json")
 	enchantments = _index(read_json("enchantments.json").get("enchantments", []), "enchantments.json")
 	enemies = _index(read_json("enemies.json").get("enemies", []), "enemies.json")
 	bosses = _index(read_json("bosses.json").get("bosses", []), "bosses.json")
 	dungeons = _index(read_json("dungeons.json").get("dungeons", []), "dungeons.json")
-	loot_tables = read_json("loot_tables.json").get("tables", {})
+	var lt := read_json("loot_tables.json")
+	loot_tables = lt.get("tables", {})
+	loot_stages = lt.get("stages", {"early": 0})
 	shop = read_json("shop.json")
-	progression = read_json("progression.json")
 	appearance = read_json("appearance.json")
 	abilities = read_json("abilities.json").get("abilities", {})
 	levels.clear()
@@ -45,7 +52,7 @@ func load_all() -> void:
 		if lv.has("id"):
 			levels[str(lv.id)] = lv
 			level_order.append(str(lv.id))
-	print("[DB] Loaded %d items, %d enchantments, %d enemies, %d bosses, %d levels" % [items.size(), enchantments.size(), enemies.size(), bosses.size(), levels.size()])
+	print("[DB] Loaded %d items, %d passives, %d enchantments, %d enemies, %d bosses, %d levels" % [items.size(), passives.size(), enchantments.size(), enemies.size(), bosses.size(), levels.size()])
 
 
 func read_json(rel_path: String) -> Dictionary:
@@ -80,6 +87,121 @@ func _register(target: Dictionary, entry: Variant, source: String) -> void:
 	if target.has(id):
 		push_warning("[DB] Duplicate id '%s' in %s (overriding)" % [id, source])
 	target[id] = entry
+
+
+# ------------------------------------------------------------------ item generation
+
+const INHERITED := ["class", "damage", "attack_speed", "range", "arc", "crit_chance", "crit_mult", "knockback", "stun_chance", "special", "swing", "stats"]
+const TAPE := "#d9d2bd"
+const OVERCLOCK_GLOW := "#ff9a3a"
+
+
+func _build_items(raw: Array) -> void:
+	## Expands authored items into the final catalogue: basic items ("tiers": true)
+	## become one variant per rarity in progression.tiers, Root items inherit the
+	## combat fields of their "base" item, and every item gets min_level and
+	## drop_sources defaults so the loot system can treat them alike.
+	var tiers: Dictionary = progression.get("tiers", {})
+	var bases: Dictionary = {}
+	for pair in raw:
+		var it: Dictionary = pair[0]
+		if it.get("tiers", false):
+			bases[str(it.get("id", ""))] = it
+	for pair in raw:
+		var it: Dictionary = pair[0]
+		if it.get("tiers", false):
+			var step := 0
+			for rarity in tiers:
+				if rarity.begins_with("_"):
+					continue
+				var t: Dictionary = tiers[rarity]
+				var v: Dictionary = it.duplicate(true)
+				v.erase("tiers")
+				v["id"] = str(it.id) + str(t.get("suffix", ""))
+				v["name"] = str(t.get("prefix", "")) + str(it.name)
+				v["rarity"] = rarity
+				v["tier_of"] = str(it.id)
+				v["min_level"] = int(it.get("min_level", 1)) + step
+				v["visual"] = _tier_visual(it.get("visual", {}), step, str(it.get("slot", "")) == "weapon")
+				_finish_item(v)
+				_register(items, v, pair[1])
+				step += 1
+		else:
+			var r: Dictionary = (it as Dictionary).duplicate(true)
+			if r.has("base") and bases.has(str(r.base)):
+				var b: Dictionary = bases[str(r.base)]
+				for k in INHERITED:
+					if b.has(k) and not r.has(k):
+						r[k] = (b[k] as Dictionary).duplicate(true) if b[k] is Dictionary else b[k]
+				r["base_name"] = str(b.get("name", ""))
+			_finish_item(r)
+			_register(items, r, pair[1])
+
+
+func _finish_item(it: Dictionary) -> void:
+	if not it.has("min_level"):
+		it["min_level"] = int(it.get("level_req", 1))
+	it["level_req"] = int(it.min_level)
+	if not it.has("drop_sources"):
+		it["drop_sources"] = ["enemy", "chest", "boss"]
+	if not it.has("effects"):
+		it["effects"] = []
+	if not it.has("rarity"):
+		it["rarity"] = "common"
+
+
+func _tier_visual(vis: Dictionary, step: int, weapon: bool) -> Dictionary:
+	## Tier art on top of the Stock model, on every "role" part. Weapons: Patched (step 1)
+	## wraps the part in a strip of tape; Overclocked (step 2) adds the tape plus a
+	## glowing inlay along it. Armor: Patched sews a patch on the front; Overclocked
+	## adds the patch and a glowing trim line.
+	var out: Dictionary = vis.duplicate(true)
+	if step <= 0:
+		return out
+	var parts: Array = out.get("parts", [])
+	var extra: Array = []
+	for p in parts:
+		if not (p as Dictionary).has("role"):
+			continue
+		var s: Array = p.get("size", [0.1, 0.1, 0.1])
+		var pos: Array = p.get("pos", [0, 0, 0])
+		if not weapon:
+			var front := float(pos[2]) - float(s[2]) * 0.5 - 0.012
+			extra.append({"shape": "box", "size": [float(s[0]) * 0.28, float(s[1]) * 0.3, 0.03], "pos": [float(pos[0]) + float(s[0]) * 0.18, float(pos[1]) + float(s[1]) * 0.12, front], "color": TAPE})
+			extra.append({"shape": "box", "size": [float(s[0]) * 0.2, 0.012, 0.035], "pos": [float(pos[0]) + float(s[0]) * 0.18, float(pos[1]) + float(s[1]) * 0.12, front - 0.004], "color": "#8a7a5e"})
+			if step >= 2:
+				extra.append({"shape": "box", "size": [float(s[0]) * 0.9, maxf(0.03, float(s[1]) * 0.06), 0.03], "pos": [float(pos[0]), float(pos[1]) - float(s[1]) * 0.18, front], "color": OVERCLOCK_GLOW, "emit": 2.2})
+			continue
+		var long := 0
+		var thin := 0
+		for i in 3:
+			if float(s[i]) > float(s[long]):
+				long = i
+			if float(s[i]) < float(s[thin]):
+				thin = i
+		# tape band: wraps the two short axes, narrow along the long one
+		var band := [float(s[0]) * 1.08 + 0.012, float(s[1]) * 1.08 + 0.012, float(s[2]) * 1.08 + 0.012]
+		band[long] = maxf(0.05, float(s[long]) * 0.16)
+		var bpos := [float(pos[0]), float(pos[1]), float(pos[2])]
+		bpos[long] += float(s[long]) * 0.18
+		extra.append({"shape": "box", "size": band, "pos": bpos, "rot": p.get("rot", [0, 0, 0]), "color": TAPE})
+		if step >= 2:
+			var inlay := [float(s[0]) * 0.3, float(s[1]) * 0.3, float(s[2]) * 0.3]
+			inlay[long] = float(s[long]) * 0.8
+			inlay[thin] = float(s[thin]) * 1.25 + 0.006
+			extra.append({"shape": "box", "size": inlay, "pos": pos, "rot": p.get("rot", [0, 0, 0]), "color": OVERCLOCK_GLOW, "emit": 2.2})
+	parts.append_array(extra)
+	out["parts"] = parts
+	return out
+
+
+func items_of(slot: String = "", rarity: String = "") -> Array[String]:
+	var out: Array[String] = []
+	for id in items:
+		var d: Dictionary = items[id]
+		if (slot == "" or str(d.get("slot", "")) == slot) and (rarity == "" or str(d.get("rarity", "")) == rarity):
+			out.append(str(id))
+	return out
 
 
 func level_computers() -> Array:

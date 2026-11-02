@@ -11,7 +11,7 @@ var vp: SubViewport
 var figure: CharacterVisual
 var _cam: Camera3D
 var _env: Environment
-var _pending: Array = []  # [appearance, armor] requested before _ready
+var _pending: Array = []  # [appearance, chest, helmet] requested before _ready
 
 
 func _init(px: float = 56.0) -> void:
@@ -56,15 +56,15 @@ func _ready() -> void:
 	tex.material = mat
 	add_child(tex)
 	if not _pending.is_empty():
-		show_profile(_pending[0], _pending[1])
+		show_profile(_pending[0], _pending[1], _pending[2])
 
 
-func show_profile(appearance: Dictionary, armor: Dictionary = {}) -> void:
-	_pending = [appearance, armor]
+func show_profile(appearance: Dictionary, armor: Dictionary = {}, helmet: Dictionary = {}) -> void:
+	_pending = [appearance, armor, helmet]
 	if figure == null:
 		return
 	figure.build(appearance)
-	figure.set_equipment({}, armor, {})
+	figure.set_gear({"chest": armor, "helmet": helmet})
 	figure.rotation.y = PI + 0.3
 	var pal: Dictionary = figure.palette
 	_env.background_color = MeshFactory.col(pal.get("suit", "#6656c9")).lerp(Color("#e8e4f4"), 0.55)

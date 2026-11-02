@@ -25,7 +25,8 @@ static func _apply(effect: String, p: Dictionary, player, ctx: Dictionary, e: Di
 		"dot_on_hit":
 			if target != null and not ctx.killed and randf() < float(p.get("chance", 1.0)):
 				var dur := float(p.get("duration", 3.0))
-				target.add_dot(float(ctx.final) * float(p.get("pct", 0.5)) / dur, dur, col)
+				var elem := 1.0 + float(player.stats.get("proc_damage_pct", 0.0))
+				target.add_dot(float(ctx.final) * float(p.get("pct", 0.5)) * elem / dur, dur, col)
 		"chain_on_hit":
 			if target != null and randf() < float(p.get("chance", 0.2)):
 				var from: Vector3 = target.global_position
@@ -58,6 +59,17 @@ static func _apply(effect: String, p: Dictionary, player, ctx: Dictionary, e: Di
 				Audio.play("explosion", -8.0)
 				for other in Combat.enemies_in_radius(pos, radius, target):
 					Combat.player_strike(player, other, float(p.get("mult", 1.0)), {"proc": true, "knockback_mult": 1.5})
+		"explode_on_crit":
+			if target != null and not ctx.get("tags", {}).get("proc", false):
+				var cpos: Vector3 = target.global_position
+				var cr := float(p.get("radius", 2.5))
+				Fx.burst(cpos + Vector3(0, 0.8, 0), col, 20, 7.0, 0.14, 0.5, -3.0)
+				Fx.ring(cpos, cr, col, 0.3)
+				Audio.play("explosion", -10.0, 0.1, 0.2)
+				for other in Combat.enemies_in_radius(cpos, cr):
+					Combat.player_strike(player, other, float(p.get("mult", 0.6)), {"proc": true, "knockback_mult": 1.2})
+		"speed_on_hit":
+			player.add_haste(float(p.get("bonus", 0.15)), float(p.get("duration", 2.0)))
 		"heal_on_kill":
 			player.heal(float(p.get("value", 5)), true)
 		"gold_on_kill":

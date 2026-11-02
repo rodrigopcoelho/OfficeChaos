@@ -60,13 +60,24 @@ func _run() -> void:
 	print("[QA] ===== OFFICE CHAOS automated play-through =====")
 	# --- data
 	check(DB.items.size() >= 13, "content: >= 10 weapons + armor + accessories loaded (%d items)" % DB.items.size())
-	var weapons := 0
-	var armors := 0
+	var per_slot := {}
 	for id in DB.items:
-		if DB.items[id].slot == "weapon": weapons += 1
-		if DB.items[id].slot == "armor": armors += 1
-	check(weapons >= 10, "content: %d weapons" % weapons)
-	check(armors >= 3, "content: %d armor pieces" % armors)
+		var sl := str(DB.items[id].slot)
+		per_slot[sl] = int(per_slot.get(sl, 0)) + 1
+	check(int(per_slot.get("weapon", 0)) == 68, "content: 68 weapons (17 basic x 3 tiers + 17 Root) (%d)" % int(per_slot.get("weapon", 0)))
+	var armor_total := 0
+	for sl in ["helmet", "chest", "legs", "boots"]:
+		armor_total += int(per_slot.get(sl, 0))
+		check(int(per_slot.get(sl, 0)) == 14, "content: 14 %s variants (3 basic x 3 + 5 Root) (%d)" % [sl, int(per_slot.get(sl, 0))])
+	check(armor_total == 56, "content: 56 armor variants (%d)" % armor_total)
+	check(not per_slot.has("armor"), "no items left in the old single armor slot")
+	check(DB.items.has("arming_sword_patched") and DB.items.has("arming_sword_overclocked") and str(DB.items.alt_f4.class) == "sword", "tiers expand and Root items inherit their base weapon")
+	var missing_icons := 0
+	for id in DB.items:
+		if not FileAccess.file_exists(ProjectSettings.globalize_path(IconCache.ICON_DIR + str(id) + ".png")):
+			missing_icons += 1
+	check(missing_icons == 0, "every item has baked 2D icon art (%d missing)" % missing_icons)
+	await _rarity_tests()
 	check(DB.enchantments.size() >= 5, "content: %d enchantments" % DB.enchantments.size())
 	check(DB.enemies.size() >= 4, "content: %d enemy types" % DB.enemies.size())
 	# --- main menu
@@ -83,7 +94,8 @@ func _run() -> void:
 	GameState.new_profile("QA Tester", {"body": 1, "palette": 4, "hair": 2}, SLOT)
 	check(GameState.has_profile(), "character created")
 	check(not GameState.equipped("weapon").is_empty(), "starting weapon equipped")
-	check(not GameState.equipped("armor").is_empty(), "starting armor equipped")
+	check(not GameState.equipped("chest").is_empty() and not GameState.equipped("legs").is_empty() and not GameState.equipped("boots").is_empty(), "starting chestplate, leggings and boots equipped")
+	check(GameState.power() == 1, "a new hire starts at Power 1")
 	await main.start_game()
 	await wait(0.8)
 	check(GameState.world.level_id == "hub", "game starts in the hub")
@@ -99,8 +111,8 @@ func _run() -> void:
 	check(vis.mood == "neutral" and GameState.ui.hud.portrait.figure.mood == "neutral", "expression returns to neutral")
 	# --- stations
 	var stations := get_tree().get_nodes_in_group("interactables").filter(func(n): return n is Station)
-	check(stations.size() == 4, "hub has 4 service stations (%d)" % stations.size())
-	for t in ["shop", "forge", "enchant", "growth", "inventory", "profile", "network"]:
+	check(stations.size() == 3, "hub has 3 service stations (%d)" % stations.size())
+	for t in ["shop", "forge", "enchant", "inventory", "profile", "network"]:
 		GameState.ui.open_app(t)
 		await frames(3)
 		check(GameState.ui.app.visible and GameState.ui.app.tab == t, "app tab '%s' opens" % t)
@@ -121,19 +133,34 @@ func _run() -> void:
 	var dmg0 := float(GameState.stats.weapon.damage)
 	err = GameState.upgrade_item(int(w.uid))
 	check(err == "" and float(GameState.stats.weapon.damage) > dmg0, "blacksmith upgrade raises damage (%.1f -> %.1f)" % [dmg0, float(GameState.stats.weapon.damage)])
-	# --- enchanting
+	# --- upgrades (formerly enchanting): points to install, Corrupted Gold to level up
 	GameState.profile.points = 10
 	var slot0: Dictionary = w.enchants[0]
 	var opt := str(slot0.options[0])
 	err = GameState.choose_enchant(int(w.uid), 0, opt)
-	check(err == "", "choose enchantment " + opt)
+	check(err == "", "install upgrade " + opt)
+	GameState.profile.corrupted_gold = 0
 	err = GameState.upgrade_enchant(int(w.uid), 0)
-	check(err == "" and int(w.enchants[0].level) == 2, "upgrade enchantment to II")
-	check(GameState.player.active_enchants.size() >= 1, "player picks up active enchantments")
-	# --- growth
+	check(err != "" and int(w.enchants[0].level) == 1, "levelling an upgrade needs Corrupted Gold")
+	GameState.add_corrupted_gold(50)
+	err = GameState.upgrade_enchant(int(w.uid), 0)
+	check(err == "" and int(w.enchants[0].level) == 2 and int(GameState.profile.corrupted_gold) < 50, "level upgrade to II with Corrupted Gold")
+	check(GameState.player.active_enchants.size() >= 1, "player picks up active upgrades")
+	# --- Power: gear is the only source of stats
 	var hp0 := float(GameState.stats.max_hp)
-	err = GameState.buy_stat_upgrade("vitality")
-	check(err == "" and float(GameState.stats.max_hp) > hp0, "performance upgrade raises max HP")
+	var dmg1 := float(GameState.stats.weapon.damage)
+	var strong := Loot.make_instance(str(w.id), 6)
+	GameState.add_item(strong, false)
+	GameState.equip(int(strong.uid))
+	check(float(GameState.stats.weapon.damage) > dmg1 * 1.3, "a Power 6 copy of the weapon hits harder (%.1f -> %.1f)" % [dmg1, float(GameState.stats.weapon.damage)])
+	check(GameState.power() > 1, "equipping higher-Power gear raises your Power (%d)" % GameState.power())
+	var scaled_enemy := Enemy.new().setup("trojan", 1.0, 0)
+	GameState.equip(int(w.uid))
+	var base_enemy := Enemy.new().setup("trojan", 1.0, 0)
+	check(scaled_enemy.max_hp > base_enemy.max_hp, "viruses scale to your Power (%.0f vs %.0f HP)" % [scaled_enemy.max_hp, base_enemy.max_hp])
+	scaled_enemy.free()
+	base_enemy.free()
+	check(float(GameState.stats.max_hp) == hp0, "no stat changes from swapping back")
 	# --- go to the office through the elevator
 	await main.travel("office_floor", {"type": "start"})
 	await wait(0.8)
@@ -171,7 +198,22 @@ func _run() -> void:
 	await wait(1.6)
 	var xp1 := int(GameState.profile.xp) + int(GameState.profile.level) * 100000
 	check(xp1 > xp0, "DATA absorbed after kill")
-	check(int(GameState.profile.gold) > gold0, "GOLD collected after kill")
+	check(int(GameState.profile.gold) > gold0, "Gold collected after kill")
+	# --- jump and Slam Impact
+	await _slam_test(p)
+	# --- corrupted enemies drop Corrupted Gold
+	var plain := Enemy.new().setup("trojan", 1.0, 0)
+	var cor := Enemy.new().setup("trojan", 1.0, 0)
+	cor.make_corrupted()
+	check(cor.corrupted and cor.max_hp > plain.max_hp * 1.5 and cor.damage > plain.damage, "corrupted variant has better stats (%.0f vs %.0f HP)" % [cor.max_hp, plain.max_hp])
+	plain.free()
+	GameState.world.actors_root.add_child(cor)
+	cor.global_position = p.global_position + Vector3(2, 0, 0)
+	await frames(2)
+	var cg0 := int(GameState.profile.corrupted_gold)
+	cor.die(true)
+	await wait(1.6)
+	check(int(GameState.profile.corrupted_gold) > cg0, "corrupted enemy drops Corrupted Gold (%d -> %d)" % [cg0, int(GameState.profile.corrupted_gold)])
 	# --- enemy AI hurts the player
 	var hp_before := p.hp
 	var attacker: Enemy = null
@@ -189,20 +231,23 @@ func _run() -> void:
 	p.input_enabled = true
 	p.hp = p.max_hp
 	# --- loot drop
-	var drop := Loot.make_instance("binary_saber")
+	var drop := Loot.make_instance("katana_overclocked")
 	GameState.world.drop_rewards(p.global_position, 0.0, 0, "")
 	var pk := Pickup.new().setup("item", 0.0, drop)
 	GameState.world.pickups_root.add_child(pk)
 	pk.global_position = p.global_position
 	await wait(1.2)
 	check(not GameState.find_item(int(drop.uid)).is_empty(), "walking over dropped equipment picks it up")
-	check(not GameState.equip(int(drop.uid)), "level requirement blocks equipping a Lv3 item at Lv%d" % int(GameState.profile.level))
+	check(int(drop.get("power", 0)) >= 1, "dropped gear rolls a Power (%d)" % int(drop.get("power", 0)))
+	var hp_lv := float(GameState.stats.max_hp)
+	var pts_lv := int(GameState.profile.points)
 	GameState.add_xp(400)
 	check(int(GameState.profile.level) >= 3, "DATA levels up (now Lv%d)" % int(GameState.profile.level))
-	check(GameState.equip(int(drop.uid)), "equip the dropped Binary Saber")
+	check(float(GameState.stats.max_hp) == hp_lv and int(GameState.profile.points) > pts_lv, "levelling grants Upgrade Points but no stats")
+	check(GameState.equip(int(drop.uid)), "equip the dropped Overclocked Katana (no level gate)")
 	await _controller_tests(p)
 	# --- special abilities
-	for wid in ["intern_shortsword", "budget_cut_axe", "paper_cut_dagger", "disciplinary_gavel", "laser_pointer_pike"]:
+	for wid in ["arming_sword", "hand_axe", "dagger", "flanged_mace", "spear"]:
 		var inst := Loot.make_instance(wid)
 		GameState.add_item(inst, false)
 		GameState.equip(int(inst.uid))
@@ -254,7 +299,8 @@ func _run() -> void:
 	var saw_phase2 := false
 	var hits := 0
 	var timeout := 0.0
-	GameState.profile.level = 20
+	# Power is what makes you strong now: hand the tester a Power 25 weapon.
+	GameState.equipped("weapon")["power"] = 25
 	GameState.recompute()
 	while not boss.dead and timeout < 120.0:
 		p.hp = p.max_hp
@@ -381,6 +427,10 @@ func _controller_tests(p: Player) -> void:
 	p.special_cd = 0.0
 	await pad_tap(JOY_BUTTON_Y)
 	check(p.special_cd > 0.0, "controller: Y uses the special ability")
+	await wait(0.6)
+	await pad_tap(JOY_BUTTON_A)
+	check(p.airborne(), "controller: A jumps")
+	await wait(0.7)
 	await pad_tap(JOY_BUTTON_DPAD_UP)
 	check(ui.app.visible and ui.app.tab == "inventory", "controller: D-pad Up opens the inventory")
 	await frames(3)
@@ -407,7 +457,7 @@ func _controller_tests(p: Player) -> void:
 	await pad_tap(JOY_BUTTON_BACK)
 	check(ui.app.visible and ui.app.tab == "network", "controller: View opens the network map")
 	await pad_tap(JOY_BUTTON_B)
-	check(Controls.pad_text("special") == "Y" and Controls.prompt("interact") == "A", "controller: HUD prompts show pad buttons")
+	check(Controls.pad_text("special") == "Y" and Controls.prompt("interact") == "B" and Controls.pad_text("jump") == "A", "controller: HUD prompts show pad buttons (A jump, B interact)")
 	Settings.rebind_pad("special", _pad_event(JOY_BUTTON_B))
 	check(Controls.pad_text("special") == "B" and InputMap.action_has_event("special", _pad_event(JOY_BUTTON_B)), "controller: special can be rebound to B")
 	Settings.reset_bindings()
@@ -417,6 +467,70 @@ func _controller_tests(p: Player) -> void:
 	Input.parse_input_event(mm)
 	await frames(2)
 	check(not Controls.gamepad and Controls.prompt("interact") == "E", "controller: moving the mouse switches back to keyboard prompts")
+
+
+func _rarity_tests() -> void:
+	## Stock / Patched / Overclocked / Root: stat scaling, passive counts, drop tables.
+	var r := RandomNumberGenerator.new()
+	r.seed = 7
+	var dmg := []
+	for id in ["longsword", "longsword_patched", "longsword_overclocked", "escape_key"]:
+		dmg.append(float(ItemUtil.weapon_stats({"id": id, "power": 1}).damage))
+	check(dmg[0] < dmg[1] and dmg[1] < dmg[2] and dmg[2] < dmg[3], "higher rarity, higher stats (%s)" % str(dmg))
+	var counts := []
+	for id in ["hauberk", "hauberk_patched", "hauberk_overclocked", "glitch_hauberk"]:
+		counts.append((Loot.make_instance(id, 1, r).get("passives", []) as Array).size())
+	check(counts == [0, 1, 2, 2], "passive count follows rarity (%s)" % str(counts))
+	var root := Loot.make_instance("alt_f4", 1, r)
+	check(ItemUtil.active_enchants(root).size() >= 1, "Root items carry a unique effect")
+	for tid in DB.loot_tables:
+		var w: Dictionary = DB.loot_tables[tid].get("rarity_weights", {})
+		for st in w:
+			var sum := 0.0
+			for k in w[st]:
+				sum += float(w[st][k])
+			check(absf(sum - 100.0) < 0.01, "loot table %s/%s adds up to 100%% (%.1f)" % [tid, st, sum])
+	var base := Loot.rarity_weights(DB.loot_tables.basic, {})
+	var boosted := Loot.rarity_weights(DB.loot_tables.basic, {"unique_find": 1.0, "rare_find": 5.0})
+	check(float(boosted.get("unique", 0)) <= maxf(float(base.get("unique", 0)) * 2.0, 3.0) + 0.001, "loot bonuses are capped (Root %.2f%% -> %.2f%%)" % [float(base.get("unique", 0)), float(boosted.get("unique", 0))])
+	var boss := Loot.rarity_weights(DB.loot_tables.boss, {})
+	check(float(boss.get("unique", 0)) > float(base.get("unique", 0)) * 5.0, "bosses have far better Root odds")
+
+
+func _slam_test(p: Player) -> void:
+	## Jump, attack mid-air, land: the enemy in front takes boosted damage and the
+	## shockwave hurts and knocks back a second one.
+	for e in Combat.enemies_in_radius(p.global_position, 10.0):
+		e.die(false)
+	await wait(0.4)
+	var front := GameState.world.spawn_enemy_near("trojan", p.global_position + Vector3(0, 0, -1.2), 0.0, 0, 1.0)
+	var side := GameState.world.spawn_enemy_near("trojan", p.global_position + Vector3(2.2, 0, 0.6), 0.0, 0, 1.0)
+	for e in [front, side]:
+		e.max_hp = 9999.0
+		e.hp = 9999.0
+		e.armor = 0.0
+	await frames(2)
+	for e in [front, side]:
+		e.stun_t = 10.0  # hold them in place so "nearest" is deterministic
+	p.force_next_crit = false
+	p.facing = Vector3(0, 0, -1)
+	p.aim_point = p.global_position + p.facing * 3.0
+	p.jump()
+	await wait(0.12)
+	check(p.airborne() and p.visual.position.y > 0.2, "jump lifts the employee (%.2f m)" % p.visual.position.y)
+	var side_pos: Vector3 = side.global_position
+	p._queue_slam()
+	await wait_until(func() -> bool: return not p.airborne(), 2.0)
+	await wait(0.15)
+	var front_dmg := 9999.0 - front.hp
+	var side_dmg := 9999.0 - side.hp
+	check(front_dmg > 0.0 and side_dmg > 0.0, "Slam Impact damages the target and the shockwave hits around (%.0f / %.0f)" % [front_dmg, side_dmg])
+	check(front_dmg > side_dmg, "the slam target takes extra damage")
+	check(side.global_position.distance_to(p.global_position) > side_pos.distance_to(p.global_position), "the shockwave knocks mobs back")
+	for e in [front, side]:
+		if is_instance_valid(e):
+			e.die(false)
+	await wait(0.4)
 
 
 func _pad_event(button: int) -> InputEventJoypadButton:

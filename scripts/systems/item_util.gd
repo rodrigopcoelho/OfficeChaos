@@ -1,8 +1,59 @@
 class_name ItemUtil
 extends RefCounted
-## Helpers for item instances: {"uid", "id", "plus", "enchants": [{"options": [...], "chosen": id, "level": n}]}
+## Helpers for item instances: {"uid", "id", "power", "plus", "enchants": [{"options": [...], "chosen": id, "level": n}]}
 
 const ROMAN := ["0", "I", "II", "III", "IV", "V"]
+const ARMOR_SLOTS := ["helmet", "chest", "legs", "boots"]
+const SLOT_NAMES := {"weapon": "Weapon", "helmet": "Helmet", "chest": "Chestplate", "legs": "Leggings", "boots": "Boots", "accessory": "Accessory"}
+
+
+static func enchant_group(slot: String) -> String:
+	## Enchantment pools are authored for "weapon", "armor" and "accessory".
+	return "armor" if slot in ARMOR_SLOTS else slot
+
+
+static func rarity_info(rarity: String) -> Dictionary:
+	return DB.progression.get("rarities", {}).get(rarity, {})
+
+
+static func rarity_mult(inst: Dictionary) -> float:
+	## Stat multiplier of the item's rarity (Stock 1.0 ... Root 1.3).
+	return float(rarity_info(str(def(inst).get("rarity", "common"))).get("stat_mult", 1.0))
+
+
+static func rarity_order(rarity: String) -> int:
+	return int(rarity_info(rarity).get("order", 9))
+
+
+static func passive_value(passive_id: String, rarity: String) -> float:
+	return float(DB.passives.get(passive_id, {}).get("values", {}).get(rarity, 0.0))
+
+
+static func passive_stats(inst: Dictionary) -> Dictionary:
+	## {stat: value} from the item's rolled passives (values scale with its rarity).
+	var out := {}
+	var rarity := str(def(inst).get("rarity", "common"))
+	for pid in inst.get("passives", []):
+		var p: Dictionary = DB.passives.get(str(pid), {})
+		if p.is_empty():
+			continue
+		var k := str(p.get("stat", ""))
+		out[k] = float(out.get(k, 0.0)) + passive_value(str(pid), rarity)
+	return out
+
+
+static func passive_text(passive_id: String, rarity: String) -> String:
+	var p: Dictionary = DB.passives.get(passive_id, {})
+	var v := passive_value(passive_id, rarity)
+	return str(p.get("text", passive_id)).replace("{v%}", StatCalc._num(v * 100.0)).replace("{v}", StatCalc._num(v))
+
+
+static func power_of(inst: Dictionary) -> int:
+	return maxi(1, int(inst.get("power", 1)))
+
+
+static func power_mult(inst: Dictionary) -> float:
+	return 1.0 + float(DB.progression.get("power", {}).get("stat_per_power", 0.1)) * (power_of(inst) - 1)
 
 
 static func def(inst: Dictionary) -> Dictionary:
@@ -27,11 +78,10 @@ static func display_name(inst: Dictionary) -> String:
 
 
 static func slot_label(d: Dictionary) -> String:
-	match str(d.get("slot", "")):
-		"weapon": return str(d.get("class", "weapon")).capitalize()
-		"armor": return "Armor"
-		"accessory": return "Accessory"
-	return "Item"
+	var slot := str(d.get("slot", ""))
+	if slot == "weapon":
+		return str(d.get("class", "weapon")).capitalize()
+	return str(SLOT_NAMES.get(slot, "Item"))
 
 
 static func bonus_mult(inst: Dictionary) -> float:
@@ -41,7 +91,7 @@ static func bonus_mult(inst: Dictionary) -> float:
 static func scaled_stats(inst: Dictionary) -> Dictionary:
 	var d := def(inst)
 	var out: Dictionary = {}
-	var mult := bonus_mult(inst)
+	var mult := bonus_mult(inst) * power_mult(inst) * rarity_mult(inst)
 	var st: Dictionary = d.get("stats", {})
 	for k in st:
 		var v := float(st[k])
@@ -55,7 +105,7 @@ static func weapon_stats(inst: Dictionary) -> Dictionary:
 	for k in ["attack_speed", "range", "arc", "crit_chance", "crit_mult", "knockback", "stun_chance"]:
 		if d.has(k):
 			w[k] = float(d[k])
-	w["damage"] = float(d.get("damage", 4)) * bonus_mult(inst)
+	w["damage"] = float(d.get("damage", 4)) * bonus_mult(inst) * power_mult(inst) * rarity_mult(inst)
 	w["special"] = str(d.get("special", "spin"))
 	w["class"] = str(d.get("class", "sword"))
 	w["swing"] = str(d.get("swing", "horizontal"))
@@ -118,7 +168,8 @@ static func enchant_point_cost(level: int) -> int:
 
 
 static func enchant_gold_cost(level: int) -> int:
-	var costs: Array = DB.progression.get("enchanting", {}).get("gold_cost", [0, 40, 100])
+	## Paid in Corrupted Gold.
+	var costs: Array = DB.progression.get("enchanting", {}).get("corrupted_gold_cost", [0, 5, 12])
 	return int(costs[clampi(level - 1, 0, costs.size() - 1)])
 
 
@@ -132,7 +183,11 @@ static func spent_points(inst: Dictionary) -> int:
 
 static func sell_price(inst: Dictionary) -> int:
 	var d := def(inst)
-	return maxi(1, int(round(float(d.get("price", 20)) * float(DB.progression.get("sell_ratio", 0.35)) * (1.0 + 0.5 * int(inst.get("plus", 0))))))
+	return maxi(1, int(round(float(d.get("price", 20)) * float(DB.progression.get("sell_ratio", 0.35)) * (1.0 + 0.5 * int(inst.get("plus", 0))) * power_mult(inst) * price_rarity_mult(inst))))
+
+
+static func price_rarity_mult(inst: Dictionary) -> float:
+	return float(rarity_info(str(def(inst).get("rarity", "common"))).get("price_mult", 1.0))
 
 
 static func upgrade_cost(inst: Dictionary) -> int:
@@ -146,11 +201,11 @@ static func main_stat_line(inst: Dictionary) -> String:
 	var d := def(inst)
 	if str(d.get("slot", "")) == "weapon":
 		var w := weapon_stats(inst)
-		return "%d DMG" % int(round(float(w.damage)))
+		return "%d DMG · P%d" % [int(round(float(w.damage))), power_of(inst)]
 	var st := scaled_stats(inst)
 	if st.has("defense"):
-		return "%d DEF" % int(round(float(st.defense)))
-	return ItemUtil.rarity_name(str(d.get("rarity", "common")))
+		return "%d DEF · P%d" % [int(round(float(st.defense))), power_of(inst)]
+	return "Power %d" % power_of(inst)
 
 
 static func describe(inst: Dictionary, compare: Dictionary = {}) -> String:
@@ -161,9 +216,9 @@ static func describe(inst: Dictionary, compare: Dictionary = {}) -> String:
 	var rc := rarity_color(str(d.get("rarity", "common"))).to_html(false)
 	var lines: Array[String] = []
 	lines.append("[font_size=22][b][color=#%s]%s[/color][/b][/font_size]" % [rc, display_name(inst)])
-	var req := int(d.get("level_req", 1))
-	var req_col := "#c8343c" if GameState.has_profile() and req > int(GameState.profile.level) else "#6e6b66"
-	lines.append("[color=#%s]%s[/color] [color=#6e6b66]· %s ·[/color] [color=%s]Requires DATA Lv %d[/color]" % [rc, rarity_name(str(d.get("rarity", "common"))), slot_label(d), req_col, req])
+	var pw := power_of(inst)
+	var pw_delta := _delta(float(pw), float(power_of(compare))) if not compare.is_empty() else ""
+	lines.append("[color=#%s]%s[/color] [color=#6e6b66]· %s ·[/color] [b]Power %d[/b]%s" % [rc, rarity_name(str(d.get("rarity", "common"))), slot_label(d), pw, pw_delta])
 	lines.append("")
 	if str(d.get("slot", "")) == "weapon":
 		var w := weapon_stats(inst)
@@ -180,6 +235,16 @@ static func describe(inst: Dictionary, compare: Dictionary = {}) -> String:
 	var cst: Dictionary = scaled_stats(compare) if not compare.is_empty() else {}
 	for k in st:
 		lines.append("%s%s" % [StatCalc.format_stat(k, float(st[k])), _delta(float(st[k]), float(cst.get(k, st[k])), true)])
+	var pas: Array = inst.get("passives", [])
+	if not pas.is_empty():
+		lines.append("")
+		lines.append("[b]Passives[/b]")
+		for pid in pas:
+			lines.append("[color=#3aa55d]◆ %s[/color] - %s" % [str(DB.passives.get(str(pid), {}).get("name", pid)), passive_text(str(pid), str(d.get("rarity", "common")))])
+	if d.has("set"):
+		lines.append("[color=#b07a10]%s set · fused on a %s[/color]" % [str(d.set), str(d.get("base_name", "basic item"))])
+	elif d.has("base_name"):
+		lines.append("[color=#b07a10]Root weapon · fused on a %s[/color]" % str(d.base_name))
 	var ench := active_enchants(inst)
 	var has_slots: bool = not inst.get("enchants", []).is_empty()
 	if not ench.is_empty() or has_slots:
@@ -193,7 +258,7 @@ static func describe(inst: Dictionary, compare: Dictionary = {}) -> String:
 			if str(s.get("chosen", "")) == "":
 				empty += 1
 		if empty > 0:
-			lines.append("[color=#6e6b66]%d empty enchantment slot%s (Software Licensing)[/color]" % [empty, "s" if empty > 1 else ""])
+			lines.append("[color=#6e6b66]%d empty upgrade slot%s (Upgrades desk)[/color]" % [empty, "s" if empty > 1 else ""])
 	lines.append("")
 	lines.append("[i][color=#6e6b66]%s[/color][/i]" % str(d.get("description", "")))
 	return "\n".join(lines)

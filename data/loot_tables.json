@@ -1,10 +1,17 @@
 {
-  "_doc": "LOOT TABLES. drop_chance = chance per roll to drop an item (luck adds to it). rolls = attempts. rarity_weights pick the rarity, then a random droppable item of that rarity whose level_req <= player level + level_slack is chosen. guaranteed = item ids always dropped (once per table roll).",
+  "_doc": "LOOT TABLES. Every reward source (enemy tiers, chests, bosses) has one. drop_chance = chance per roll to drop an item (gear 'drop_rate' bonuses multiply it, capped by progression.loot_modifiers). rolls = attempts. source = which items may drop here (items list their drop_sources). rarity_weights are percentages that must add up to 100, per game stage: early / mid / late, chosen from the player's gear Power with 'stages' below (tables may also give one flat rarity_weights block). The picked rarity then selects a random droppable item of that rarity whose min_level <= DATA level + level_slack. guaranteed = item ids always dropped (guaranteed_once: only the first time).",
+  "stages": {"early": 0, "mid": 6, "late": 14},
   "tables": {
-    "basic": {"drop_chance": 0.09, "rolls": 1, "level_slack": 2, "rarity_weights": {"common": 80, "special": 18, "unique": 2}},
-    "tough": {"drop_chance": 0.22, "rolls": 1, "level_slack": 2, "rarity_weights": {"common": 65, "special": 30, "unique": 5}},
-    "elite": {"drop_chance": 0.75, "rolls": 1, "level_slack": 3, "rarity_weights": {"common": 35, "special": 52, "unique": 13}},
-    "chest": {"drop_chance": 1.0, "rolls": 2, "level_slack": 3, "rarity_weights": {"common": 25, "special": 55, "unique": 20}},
-    "boss": {"drop_chance": 1.0, "rolls": 2, "level_slack": 4, "rarity_weights": {"special": 40, "unique": 60}, "guaranteed": ["golden_handshake"], "guaranteed_once": true}
+    "basic": {"drop_chance": 0.09, "rolls": 1, "level_slack": 2, "source": "enemy",
+      "rarity_weights": {"early": {"common": 85, "rare": 13, "special": 2, "unique": 0}, "mid": {"common": 70, "rare": 23, "special": 6, "unique": 1}, "late": {"common": 55, "rare": 30, "special": 12, "unique": 3}}},
+    "tough": {"drop_chance": 0.22, "rolls": 1, "level_slack": 2, "source": "enemy",
+      "rarity_weights": {"early": {"common": 75, "rare": 20, "special": 5, "unique": 0}, "mid": {"common": 60, "rare": 28, "special": 10, "unique": 2}, "late": {"common": 45, "rare": 33, "special": 18, "unique": 4}}},
+    "elite": {"drop_chance": 0.75, "rolls": 1, "level_slack": 3, "source": "enemy",
+      "rarity_weights": {"early": {"common": 50, "rare": 35, "special": 13, "unique": 2}, "mid": {"common": 35, "rare": 38, "special": 22, "unique": 5}, "late": {"common": 25, "rare": 37, "special": 30, "unique": 8}}},
+    "chest": {"drop_chance": 1.0, "rolls": 2, "level_slack": 3, "source": "chest",
+      "rarity_weights": {"early": {"common": 30, "rare": 45, "special": 20, "unique": 5}, "mid": {"common": 20, "rare": 42, "special": 30, "unique": 8}, "late": {"common": 10, "rare": 40, "special": 38, "unique": 12}}},
+    "boss": {"drop_chance": 1.0, "rolls": 2, "level_slack": 4, "source": "boss",
+      "rarity_weights": {"early": {"common": 0, "rare": 20, "special": 55, "unique": 25}, "mid": {"common": 0, "rare": 15, "special": 50, "unique": 35}, "late": {"common": 0, "rare": 10, "special": 45, "unique": 45}},
+      "guaranteed": ["surge_protector"], "guaranteed_once": true}
   }
 }

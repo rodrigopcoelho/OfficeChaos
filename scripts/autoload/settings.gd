@@ -12,27 +12,29 @@ const ACTIONS := {
 	"move_right": {"label": "Move Right", "type": "key", "code": KEY_D},
 	"attack": {"label": "Attack", "type": "mouse", "code": MOUSE_BUTTON_LEFT},
 	"dodge": {"label": "Dodge Roll", "type": "mouse", "code": MOUSE_BUTTON_RIGHT},
+	"jump": {"label": "Jump (attack mid-air to Slam)", "type": "key", "code": KEY_SPACE},
 	"special": {"label": "Special Ability", "type": "key", "code": KEY_Q},
 	"interact": {"label": "Interact", "type": "key", "code": KEY_E},
 	"inventory": {"label": "Inventory", "type": "key", "code": KEY_I},
 	"network_map": {"label": "Network Map", "type": "key", "code": KEY_M},
 	"pause": {"label": "Pause Menu", "type": "key", "code": KEY_ESCAPE},
 }
-const ACTION_ORDER := ["move_up", "move_down", "move_left", "move_right", "attack", "dodge", "special", "interact", "inventory", "network_map", "pause"]
+const ACTION_ORDER := ["move_up", "move_down", "move_left", "move_right", "attack", "dodge", "jump", "special", "interact", "inventory", "network_map", "pause"]
 
 ## Controller defaults follow Minecraft Dungeons II (left stick move, X melee,
-## LB / right-stick flick dodge, Y artifact, A interact, D-pad Up inventory,
+## LB / right-stick flick dodge, A jump, Y artifact, B interact, D-pad Up inventory,
 ## View map, Menu pause). Movement on the left stick is fixed.
 const PAD_ACTIONS := {
 	"attack": {"label": "Melee Attack", "type": "pad_button", "code": JOY_BUTTON_X},
 	"dodge": {"label": "Dodge Roll", "type": "pad_button", "code": JOY_BUTTON_LEFT_SHOULDER},
+	"jump": {"label": "Jump (attack mid-air to Slam)", "type": "pad_button", "code": JOY_BUTTON_A},
 	"special": {"label": "Special (Artifact)", "type": "pad_button", "code": JOY_BUTTON_Y},
-	"interact": {"label": "Interact", "type": "pad_button", "code": JOY_BUTTON_A},
+	"interact": {"label": "Interact", "type": "pad_button", "code": JOY_BUTTON_B},
 	"inventory": {"label": "Inventory", "type": "pad_button", "code": JOY_BUTTON_DPAD_UP},
 	"network_map": {"label": "Network Map", "type": "pad_button", "code": JOY_BUTTON_BACK},
 	"pause": {"label": "Pause Menu", "type": "pad_button", "code": JOY_BUTTON_START},
 }
-const PAD_ORDER := ["attack", "dodge", "special", "interact", "inventory", "network_map", "pause"]
+const PAD_ORDER := ["attack", "dodge", "jump", "special", "interact", "inventory", "network_map", "pause"]
 const QUALITY_LEVELS := ["high", "medium", "low"]
 const FPS_CAPS := [0, 30, 60, 120]
 
@@ -242,6 +244,9 @@ func load_settings() -> void:
 	for a in saved_pad:
 		if PAD_ACTIONS.has(a) and saved_pad[a] is Dictionary:
 			pad_bindings[a] = {"type": str(saved_pad[a].get("type", "pad_button")), "code": int(saved_pad[a].get("code", 0)), "value": float(saved_pad[a].get("value", 1.0))}
+	# Saves from before Jump existed kept Interact on A, which now jumps: move it to B.
+	if not saved_pad.has("jump") and int(pad_bindings.interact.code) == JOY_BUTTON_A:
+		pad_bindings["interact"] = {"type": "pad_button", "code": JOY_BUTTON_B}
 	master_volume = float(d.get("master_volume", master_volume))
 	sfx_volume = float(d.get("sfx_volume", sfx_volume))
 	ambient_volume = float(d.get("ambient_volume", ambient_volume))

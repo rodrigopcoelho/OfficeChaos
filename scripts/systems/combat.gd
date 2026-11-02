@@ -19,6 +19,9 @@ static func player_strike(player, enemy, mult: float, tags: Dictionary = {}) -> 
 	if crit:
 		ctx.mult *= float(w.get("crit_mult", 1.5)) + float(player.stats.get("crit_mult_bonus", 0.0))
 	ctx.mult *= player.damage_multiplier()
+	if tags.get("proc", false):
+		# chains, explosions and other effect damage: the "elemental damage" passive
+		ctx.mult *= 1.0 + float(player.stats.get("proc_damage_pct", 0.0))
 	var final := float(ctx.damage) * float(ctx.mult)
 	var kb := float(w.get("knockback", 3.0)) * float(tags.get("knockback_mult", 1.0))
 	var killed: bool = enemy.take_hit(final, crit, player.global_position, kb)

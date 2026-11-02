@@ -7,7 +7,7 @@ var figure: CharacterVisual
 var spin_speed := 0.6
 var _t := 0.0
 var _pending_app: Variant = null
-var _pending_eq: Array = []
+var _pending_gear: Dictionary = {}
 
 
 func _init(sz: Vector2 = Vector2(300, 380)) -> void:
@@ -59,8 +59,8 @@ func _ready() -> void:
 	# `ready` too late); apply whatever was requested so far.
 	if _pending_app != null:
 		set_appearance(_pending_app)
-	if not _pending_eq.is_empty():
-		set_equipment(_pending_eq[0], _pending_eq[1], _pending_eq[2])
+	if not _pending_gear.is_empty():
+		set_gear(_pending_gear)
 
 
 func set_appearance(app: Dictionary) -> void:
@@ -69,15 +69,20 @@ func set_appearance(app: Dictionary) -> void:
 		return
 	figure.build(app)
 	figure.rotation.y = PI + 0.4
-	if not _pending_eq.is_empty():
-		figure.set_equipment(_pending_eq[0], _pending_eq[1], _pending_eq[2])
+	if not _pending_gear.is_empty():
+		figure.set_gear(_pending_gear)
+
+
+func set_gear(gear: Dictionary) -> void:
+	## {slot: item instance}, see CharacterVisual.set_gear.
+	_pending_gear = gear
+	if figure == null or figure.body == null:
+		return
+	figure.set_gear(gear)
 
 
 func set_equipment(w: Dictionary, a: Dictionary, c: Dictionary) -> void:
-	_pending_eq = [w, a, c]
-	if figure == null:
-		return
-	figure.set_equipment(w, a, c)
+	set_gear({"weapon": w, "chest": a, "accessory": c})
 
 
 func _process(delta: float) -> void:

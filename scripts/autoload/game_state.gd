@@ -4,6 +4,7 @@ extends Node
 
 signal profile_loaded
 signal gold_changed(gold: int)
+signal corrupted_gold_changed(amount: int)
 signal xp_changed(level: int, xp: int, needed: int)
 signal leveled_up(level: int)
 signal inventory_changed
@@ -16,8 +17,24 @@ signal computer_unlocked(id: String)
 const SAVE_DIR := "user://saves/"
 const SLOT_COUNT := 3
 const INVENTORY_SIZE := 36
-const SAVE_VERSION := 1
-const SLOTS := ["weapon", "armor", "accessory"]
+const SAVE_VERSION := 3
+## Items retired by the Stock / Patched / Overclocked / Root catalogue (save version 3)
+## and what they turn into, so old saves keep a matching item instead of losing it.
+const LEGACY_IDS := {
+	"intern_shortsword": "arming_sword", "compliance_longsword": "longsword", "binary_saber": "katana_overclocked",
+	"excalibyte": "escape_key", "budget_cut_axe": "hand_axe", "the_downsizer": "battle_axe_overclocked",
+	"paper_cut_dagger": "dagger", "keylogger_kris": "dagger_overclocked", "disciplinary_gavel": "flanged_mace",
+	"ctrl_alt_maul": "server_rack_maul", "laser_pointer_pike": "spear", "deadline_pike": "halberd_overclocked",
+	"overtime_claymore": "claymore_overclocked", "golden_handshake": "surge_protector",
+	"business_casual_mail": "squires_gambeson", "cardigan_of_plate": "hauberk", "clean_room_coverall": "hauberk_overclocked",
+	"firewall_cuirass": "cuirass_overclocked", "executive_plate": "motherboard_cuirass",
+	"visitor_cap": "squires_coif", "safety_hard_hat": "kettle_hat", "noise_cancelling_helm": "kettle_hat_overclocked",
+	"vr_visor": "great_helm_overclocked", "ceo_crown": "heatsink_great_helm",
+	"pleated_khakis": "squires_chausses", "cargo_greaves": "mail_chausses", "standing_desk_legplates": "greaves_overclocked",
+	"golden_parachute_pants": "coolant_greaves", "sensible_loafers": "squires_boots", "steel_toe_sneakers": "riveted_boots",
+	"commuter_sabatons": "sabatons_overclocked", "red_carpet_boots": "thermal_paste_boots",
+}
+const SLOTS := ["weapon", "helmet", "chest", "legs", "boots", "accessory"]
 
 var profile: Dictionary = {}
 var stats: Dictionary = {}
@@ -67,7 +84,7 @@ func new_profile(char_name: String, appearance: Dictionary, slot: int) -> void:
 	profile["gold"] = int(kit.get("gold", 50))
 	profile["created"] = Time.get_datetime_string_from_system()
 	for id in kit.get("items", []):
-		var inst := Loot.make_instance(str(id))
+		var inst := Loot.make_instance(str(id), 1)
 		if inst.is_empty():
 			continue
 		add_item(inst, false)
@@ -85,9 +102,9 @@ func new_profile(char_name: String, appearance: Dictionary, slot: int) -> void:
 func _default_profile() -> Dictionary:
 	return {
 		"version": SAVE_VERSION, "slot": 0, "name": "Employee", "appearance": {"body": 0, "palette": 0, "hair": 0, "face": 0},
-		"level": 1, "xp": 0, "gold": 0, "points": 0,
-		"inventory": [], "equipment": {"weapon": -1, "armor": -1, "accessory": -1},
-		"upgrades": {}, "unlocked_computers": [], "clearance": 0, "bosses_defeated": {},
+		"level": 1, "xp": 0, "gold": 0, "corrupted_gold": 0, "points": 0,
+		"inventory": [], "equipment": {"weapon": -1, "helmet": -1, "chest": -1, "legs": -1, "boots": -1, "accessory": -1},
+		"unlocked_computers": [], "clearance": 0, "bosses_defeated": {},
 		"kills": 0, "deaths": 0, "play_time": 0.0, "next_uid": 1, "shop_stock": [],
 		"current_level": str(DB.manifest.get("hub_level", "hub")), "created": "", "dungeons_cleared": 0,
 	}
@@ -106,6 +123,11 @@ func next_uid() -> int:
 func recompute() -> void:
 	stats = StatCalc.compute(profile)
 	stats_changed.emit()
+
+
+func power() -> int:
+	## The player's gear Power: drops roll around it and enemies scale to it.
+	return StatCalc.power(profile) if not profile.is_empty() else 1
 
 
 func notify(sender: String, message: String, kind: String = "info") -> void:
@@ -140,7 +162,7 @@ func add_xp(amount: float) -> void:
 		recompute()
 		points_changed.emit(int(profile.points))
 		leveled_up.emit(int(profile.level))
-		notify("HR Automated Assistant", "Congratulations! You have been promoted to DATA Level %d (%s). +%d DATA Points." % [int(profile.level), title_for_level(int(profile.level)), int(DB.progression.get("points_per_level", 2))], "levelup")
+		notify("HR Automated Assistant", "Congratulations! You have been promoted to DATA Level %d (%s). +%d Upgrade Points." % [int(profile.level), title_for_level(int(profile.level)), int(DB.progression.get("points_per_level", 2))], "levelup")
 	xp_changed.emit(int(profile.level), int(profile.xp), xp_needed(int(profile.level)))
 
 
@@ -160,6 +182,22 @@ func spend_gold(amount: int) -> bool:
 		return false
 	profile["gold"] = int(profile.gold) - amount
 	gold_changed.emit(int(profile.gold))
+	return true
+
+
+func add_corrupted_gold(amount: int) -> void:
+	## Corrupted Gold only drops from corrupted enemies; it pays for Upgrades.
+	if profile.is_empty() or amount <= 0:
+		return
+	profile["corrupted_gold"] = int(profile.get("corrupted_gold", 0)) + amount
+	corrupted_gold_changed.emit(int(profile.corrupted_gold))
+
+
+func spend_corrupted_gold(amount: int) -> bool:
+	if int(profile.get("corrupted_gold", 0)) < amount:
+		return false
+	profile["corrupted_gold"] = int(profile.corrupted_gold) - amount
+	corrupted_gold_changed.emit(int(profile.corrupted_gold))
 	return true
 
 
@@ -187,6 +225,14 @@ func find_item(uid: int) -> Dictionary:
 func equipped(slot: String) -> Dictionary:
 	var u := int(profile.get("equipment", {}).get(slot, -1))
 	return {} if u < 0 else find_item(u)
+
+
+func equipped_gear() -> Dictionary:
+	## {slot: item instance} for every gear slot ({} where empty).
+	var out := {}
+	for s in SLOTS:
+		out[s] = equipped(s)
+	return out
 
 
 func is_equipped(uid: int) -> bool:
@@ -232,8 +278,9 @@ func remove_item(uid: int) -> void:
 
 
 func can_equip(inst: Dictionary) -> bool:
+	# No level gate (Minecraft Dungeons style): any item can be worn; Power is the progression.
 	var d: Dictionary = DB.items.get(inst.get("id", ""), {})
-	return not d.is_empty() and int(d.get("level_req", 1)) <= int(profile.level)
+	return not d.is_empty() and str(d.get("slot", "")) in SLOTS
 
 
 func equip(uid: int) -> bool:
@@ -270,11 +317,18 @@ func refresh_shop() -> void:
 	var pool: Array = []
 	var lvl := int(profile.get("level", 1))
 	var slack := int(cfg.get("level_slack", 3))
+	var weights: Dictionary = {}
+	var rw: Dictionary = cfg.get("rarity_weights", {})
+	for id in DB.items:
+		if rw.has(str(DB.items[id].get("rarity", ""))):
+			weights[str(id)] = float(rw[str(DB.items[id].rarity)])
 	for e in cfg.get("pool", []):
-		var d: Dictionary = DB.items.get(str(e.get("id", "")), {})
-		if d.is_empty() or int(d.get("level_req", 1)) > lvl + slack:
+		weights[str(e.get("id", ""))] = float(e.get("weight", 1))
+	for id in weights:
+		var d: Dictionary = DB.items.get(id, {})
+		if d.is_empty() or float(weights[id]) <= 0.0 or int(d.get("min_level", 1)) > lvl + slack:
 			continue
-		pool.append(e)
+		pool.append({"id": id, "weight": weights[id]})
 	var stock: Array = []
 	var picked: Array = []
 	for i in int(cfg.get("stock_size", 8)):
@@ -301,7 +355,7 @@ func refresh_shop() -> void:
 
 func shop_price(inst: Dictionary) -> int:
 	var d: Dictionary = DB.items.get(inst.get("id", ""), {})
-	return int(round(float(d.get("price", 50)) * float(DB.shop.get("price_mult", 1.0))))
+	return int(round(float(d.get("price", 50)) * float(DB.shop.get("price_mult", 1.0)) * ItemUtil.power_mult(inst) * ItemUtil.price_rarity_mult(inst)))
 
 
 func buy_shop_item(uid: int) -> String:
@@ -314,11 +368,11 @@ func buy_shop_item(uid: int) -> String:
 			return "Inventory is full."
 		var price := shop_price(inst)
 		if not spend_gold(price):
-			return "Not enough GOLD."
+			return "Not enough Gold."
 		stock.remove_at(i)
 		add_item(inst, false)
 		Audio.play("buy")
-		notify("Procurement", "Purchase approved: %s for %d GOLD." % [ItemUtil.display_name(inst), price], "shop")
+		notify("Procurement", "Purchase approved: %s for %d Gold." % [ItemUtil.display_name(inst), price], "shop")
 		return ""
 	return "Item no longer in stock."
 
@@ -340,7 +394,7 @@ func upgrade_item(uid: int) -> String:
 		return "Already at maximum upgrade."
 	var cost := ItemUtil.upgrade_cost(inst)
 	if not spend_gold(cost):
-		return "Not enough GOLD."
+		return "Not enough Gold."
 	inst["plus"] = int(inst.get("plus", 0)) + 1
 	recompute()
 	inventory_changed.emit()
@@ -363,7 +417,7 @@ func choose_enchant(uid: int, slot_i: int, enchant_id: String) -> String:
 		return "Not an option for this slot."
 	var cost := ItemUtil.enchant_point_cost(1)
 	if not spend_points(cost):
-		return "Not enough DATA Points."
+		return "Not enough Upgrade Points."
 	s["chosen"] = enchant_id
 	s["level"] = 1
 	recompute()
@@ -383,47 +437,18 @@ func upgrade_enchant(uid: int, slot_i: int) -> String:
 	if lvl <= 0 or lvl >= max_lvl:
 		return "Cannot upgrade further."
 	var pts := ItemUtil.enchant_point_cost(lvl + 1)
-	var gold := ItemUtil.enchant_gold_cost(lvl + 1)
+	var cgold := ItemUtil.enchant_gold_cost(lvl + 1)
 	if int(profile.points) < pts:
-		return "Not enough DATA Points."
-	if int(profile.gold) < gold:
-		return "Not enough GOLD."
+		return "Not enough Upgrade Points."
+	if int(profile.get("corrupted_gold", 0)) < cgold:
+		return "Not enough Corrupted Gold."
 	spend_points(pts)
-	spend_gold(gold)
+	spend_corrupted_gold(cgold)
 	s["level"] = lvl + 1
 	recompute()
 	inventory_changed.emit()
 	equipment_changed.emit()
 	Audio.play("enchant")
-	return ""
-
-
-func upgrade_rank(id: String) -> int:
-	return int(profile.get("upgrades", {}).get(id, 0))
-
-
-func buy_stat_upgrade(id: String) -> String:
-	var up := StatCalc.upgrade_def(id)
-	if up.is_empty():
-		return "Unknown upgrade."
-	var rank := upgrade_rank(id)
-	if rank >= int(up.get("max_rank", 5)):
-		return "Maximum rank reached."
-	var req := StatCalc.upgrade_level_req(up, rank)
-	if int(profile.level) < req:
-		return "Requires DATA Level %d." % req
-	var gold := StatCalc.upgrade_gold_cost(up, rank)
-	var pts := int(up.get("points", 1))
-	if int(profile.points) < pts:
-		return "Not enough DATA Points."
-	if int(profile.gold) < gold:
-		return "Not enough GOLD."
-	spend_points(pts)
-	spend_gold(gold)
-	profile.upgrades[id] = rank + 1
-	recompute()
-	equipment_changed.emit()
-	Audio.play("levelup", -6.0)
 	return ""
 
 
@@ -510,7 +535,7 @@ func slot_summary(slot: int) -> Dictionary:
 	var d := read_slot(slot)
 	if d.is_empty():
 		return {}
-	return {"name": str(d.get("name", "?")), "level": int(d.get("level", 1)), "gold": int(d.get("gold", 0)),
+	return {"name": str(d.get("name", "?")), "level": int(d.get("level", 1)), "gold": int(d.get("gold", 0)), "corrupted_gold": int(d.get("corrupted_gold", 0)),
 		"play_time": float(d.get("play_time", 0.0)), "clearance": int(d.get("clearance", 0)), "appearance": d.get("appearance", {})}
 
 
@@ -525,13 +550,29 @@ func delete_slot(slot: int) -> void:
 
 func _normalize() -> void:
 	## JSON turns ints into floats and content may have been removed since saving.
-	for k in ["level", "xp", "gold", "points", "next_uid", "clearance", "kills", "deaths", "slot", "dungeons_cleared"]:
+	for k in ["level", "xp", "gold", "corrupted_gold", "points", "next_uid", "clearance", "kills", "deaths", "slot", "dungeons_cleared"]:
 		profile[k] = int(profile.get(k, 0))
+	# Version 1 saves: the single "armor" slot became the chestplate, and items had no Power.
+	var eq_old: Dictionary = profile.get("equipment", {})
+	if eq_old.has("armor"):
+		if int(eq_old.get("chest", -1)) < 0:
+			eq_old["chest"] = eq_old.armor
+		eq_old.erase("armor")
+	profile.erase("upgrades")
+	profile["version"] = SAVE_VERSION
 	var clean: Array = []
+	for it in profile.get("inventory", []) + profile.get("shop_stock", []):
+		if it is Dictionary and LEGACY_IDS.has(str(it.get("id", ""))):
+			it["id"] = LEGACY_IDS[str(it.id)]
+			if not it.has("passives"):
+				it["passives"] = Loot.roll_passives(DB.items.get(str(it.id), {}), rng)
 	for it in profile.get("inventory", []):
 		if it is Dictionary and DB.items.has(str(it.get("id", ""))):
 			it["uid"] = int(it.uid)
+			it["power"] = maxi(1, int(it.get("power", 1)))
 			it["plus"] = int(it.get("plus", 0))
+			if not it.has("passives"):
+				it["passives"] = []
 			for s in it.get("enchants", []):
 				s["level"] = int(s.get("level", 0))
 			clean.append(it)
@@ -543,14 +584,12 @@ func _normalize() -> void:
 	profile["equipment"] = eq
 	for it in profile.get("shop_stock", []):
 		it["uid"] = int(it.uid)
+		it["power"] = maxi(1, int(it.get("power", 1)))
 	var stock: Array = []
 	for it in profile.get("shop_stock", []):
 		if DB.items.has(str(it.get("id", ""))):
 			stock.append(it)
 	profile["shop_stock"] = stock
-	var ups: Dictionary = profile.get("upgrades", {})
-	for k in ups:
-		ups[k] = int(ups[k])
 	var max_uid := 0
 	for it in clean + stock:
 		max_uid = maxi(max_uid, int(it.uid))

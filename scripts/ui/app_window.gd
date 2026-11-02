@@ -1,20 +1,19 @@
 class_name AppWindow
 extends Control
 ## The full-screen "CubeLink" app: every management screen (profile, inventory &
-## equipment, shop, blacksmith, enchanting, performance upgrades, network map,
-## settings) lives in a channel of this window.
+## equipment, shop, blacksmith, upgrades, network map, settings) lives in a channel
+## of this window.
 
 const TABS := {
-	"profile": {"icon": "profile", "title": "profile", "sub": "Your employee record"},
-	"inventory": {"icon": "items", "title": "inventory", "sub": "Assigned assets & equipment"},
-	"network": {"icon": "map", "title": "network-map", "sub": "Golden terminal transfer network"},
-	"shop": {"icon": "shop", "title": "procurement", "sub": "Purchase equipment with GOLD", "hub": true},
-	"forge": {"icon": "forge", "title": "it-hardware-forge", "sub": "Upgrade equipment (Blacksmith)", "hub": true},
-	"enchant": {"icon": "enchant", "title": "software-licensing", "sub": "Install and upgrade enchantments", "hub": true},
-	"growth": {"icon": "growth", "title": "hr-development", "sub": "Permanent performance upgrades", "hub": true},
-	"settings": {"icon": "settings", "title": "settings", "sub": "Preferences & controls"},
+	"profile": {"icon": "profile", "title": "profile", "label": "Profile", "sub": "Your employee record"},
+	"inventory": {"icon": "items", "title": "inventory", "label": "Inventory", "sub": "Assigned assets & equipment"},
+	"network": {"icon": "map", "title": "network-map", "label": "Network", "sub": "Golden terminal transfer network"},
+	"shop": {"icon": "shop", "title": "procurement", "label": "Shop", "sub": "Purchase equipment with Gold", "hub": true},
+	"forge": {"icon": "forge", "title": "it-hardware-forge", "label": "Forge", "sub": "Upgrade equipment (Blacksmith)", "hub": true},
+	"enchant": {"icon": "enchant", "title": "upgrades", "label": "Upgrades", "sub": "Install and level up item upgrades", "hub": true},
+	"settings": {"icon": "settings", "title": "settings", "label": "Settings", "sub": "Preferences & controls"},
 }
-const TAB_ORDER := ["profile", "inventory", "network", "shop", "forge", "enchant", "growth", "settings"]
+const TAB_ORDER := ["profile", "inventory", "network", "shop", "forge", "enchant", "settings"]
 
 var tab := "inventory"
 var ctx: Dictionary = {}
@@ -38,13 +37,16 @@ func _ready() -> void:
 	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(dim)
 	window = PanelContainer.new()
-	window.add_theme_stylebox_override("panel", UIKit.sb(UIKit.C_BG, 12, 1, Color(0, 0, 0, 0.3), 0))
+	var win_sb := UIKit.sb(UIKit.C_BG, 6, 1, Color(0, 0, 0, 0.3), 0)
+	win_sb.shadow_color = Color(0, 0, 0, 0.35)
+	win_sb.shadow_size = 18
+	window.add_theme_stylebox_override("panel", win_sb)
 	UIKit.place(window, 0.5, 0.5, 0.5, 0.5, -660, -390, 660, 390)
 	add_child(window)
 	var h := UIKit.hbox(0)
 	window.add_child(h)
 	var rail := PanelContainer.new()
-	rail.add_theme_stylebox_override("panel", UIKit.sb(UIKit.C_RAIL, 12, 0, Color.TRANSPARENT, 0))
+	rail.add_theme_stylebox_override("panel", UIKit.sb(UIKit.C_RAIL, 6, 0, Color.TRANSPARENT, 0))
 	rail.custom_minimum_size.x = 76
 	h.add_child(rail)
 	rail_box = UIKit.vbox(2)
@@ -64,9 +66,17 @@ func _ready() -> void:
 	hh.add_child(sub_label)
 	hh.add_child(UIKit.spacer())
 	for t in ["Posts", "Files", "Wiki"]:
-		var tl := UIKit.label(t, 13, UIKit.C_ACCENT if t == "Posts" else UIKit.C_MUTED, t == "Posts")
-		tl.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		hh.add_child(tl)
+		# Teams channel tabs: the active one is bold with a brand-coloured underline.
+		var tv := UIKit.vbox(4)
+		tv.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		var tl := UIKit.label(t, 13, UIKit.C_TEXT if t == "Posts" else UIKit.C_MUTED, t == "Posts")
+		tv.add_child(tl)
+		var ul := ColorRect.new()
+		ul.custom_minimum_size = Vector2(0, 3)
+		ul.color = UIKit.C_ACCENT if t == "Posts" else Color.TRANSPARENT
+		ul.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		tv.add_child(ul)
+		hh.add_child(tv)
 	var close := UIKit.button("Close  (Esc / B)", close_window, "ghost")
 	hh.add_child(close)
 	var line := ColorRect.new()
@@ -79,7 +89,7 @@ func _ready() -> void:
 		body.add_theme_constant_override("margin_" + side, 18)
 	main.add_child(body)
 	visible = false
-	for sig in [GameState.inventory_changed, GameState.equipment_changed, GameState.gold_changed, GameState.points_changed, GameState.stats_changed, GameState.computer_unlocked]:
+	for sig in [GameState.inventory_changed, GameState.equipment_changed, GameState.gold_changed, GameState.corrupted_gold_changed, GameState.points_changed, GameState.stats_changed, GameState.computer_unlocked]:
 		sig.connect(func(_a = null) -> void: _mark_dirty())
 
 
@@ -146,7 +156,6 @@ func _rebuild() -> void:
 		"shop": _tab_shop()
 		"forge": _tab_forge()
 		"enchant": _tab_enchant()
-		"growth": _tab_growth()
 		"network": _tab_network()
 		"settings": body.add_child(SettingsPanel.new())
 	if Controls.gamepad:
@@ -199,7 +208,7 @@ func _rail_button(t: String) -> Button:
 	var ic := RailIcon.new(str(info.icon), Color.WHITE if active else Color("#bdb6d4"))
 	UIKit.place(ic, 0.5, 0, 0.5, 0, -11, 9, 11, 31)
 	b.add_child(ic)
-	var l := UIKit.label(t.capitalize(), 10, Color.WHITE if active else Color("#bdb6d4"))
+	var l := UIKit.label(str(info.get("label", t.capitalize())), 10, Color.WHITE if active else Color("#bdb6d4"))
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	UIKit.place(l, 0, 0, 1, 0, 0, 35, 0, 52)
 	b.add_child(l)
@@ -218,7 +227,7 @@ func _locked_notice() -> Control:
 	var v := UIKit.vbox(10)
 	p.add_child(v)
 	v.add_child(UIKit.label("This channel is on-site only", 20, UIKit.C_TEXT, true))
-	var l := UIKit.label("Services like Procurement, the IT Hardware Forge, Software Licensing and HR Development\nare only staffed in The Lobby (Floor 0). Return through an elevator, a golden terminal,\nor the pause menu.", 14, UIKit.C_MUTED)
+	var l := UIKit.label("Services like Procurement, the IT Hardware Forge and Upgrades are only staffed\nin The Lobby (Floor 0). Return through an elevator, a golden terminal, or the pause menu.", 14, UIKit.C_MUTED)
 	v.add_child(l)
 	return c
 
@@ -283,8 +292,9 @@ func _sorted_items(include_equipped: bool) -> Array:
 	for it in GameState.inventory():
 		if include_equipped or not GameState.is_equipped(int(it.uid)):
 			out.append(it)
-	var order := {"unique": 0, "special": 1, "common": 2}
-	var slot_order := {"weapon": 0, "armor": 1, "accessory": 2}
+	var slot_order := {}
+	for i in GameState.SLOTS.size():
+		slot_order[GameState.SLOTS[i]] = i
 	out.sort_custom(func(a, b) -> bool:
 		var ea := 0 if GameState.is_equipped(int(a.uid)) else 1
 		var eb := 0 if GameState.is_equipped(int(b.uid)) else 1
@@ -296,7 +306,7 @@ func _sorted_items(include_equipped: bool) -> Array:
 		var sb2: int = slot_order.get(str(db.get("slot", "")), 3)
 		if sa != sb2:
 			return sa < sb2
-		return int(order.get(str(da.get("rarity", "")), 3)) < int(order.get(str(db.get("rarity", "")), 3)))
+		return ItemUtil.rarity_order(str(da.get("rarity", ""))) < ItemUtil.rarity_order(str(db.get("rarity", ""))))
 	return out
 
 
@@ -327,17 +337,20 @@ func _tab_profile() -> void:
 	var prev := CharacterPreview.new(Vector2(320, 430))
 	left.add_child(prev)
 	prev.set_appearance(pr.appearance)
-	prev.set_equipment(GameState.equipped("weapon"), GameState.equipped("armor"), GameState.equipped("accessory"))
+	prev.set_gear(GameState.equipped_gear())
 	var right := UIKit.vbox(10)
 	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	h.add_child(right)
 	var nh := UIKit.hbox(12)
 	right.add_child(nh)
 	nh.add_child(UIKit.label(str(pr.name), 28, UIKit.C_TEXT, true))
+	nh.add_child(UIKit.pill("Power %d" % GameState.power(), Color("#e2aa2c")))
 	nh.add_child(UIKit.pill(GameState.title_for_level(int(pr.level)), UIKit.C_ACCENT))
 	nh.add_child(UIKit.pill("Security Clearance T%d" % GameState.clearance(), Color("#c22cff")))
 	var lvl := int(pr.level)
-	right.add_child(UIKit.label("DATA Level %d   ·   %d / %d DATA to next promotion   ·   %d DATA Points unspent" % [lvl, int(pr.xp), GameState.xp_needed(lvl), int(pr.points)], 14, UIKit.C_MUTED))
+	right.add_child(UIKit.label("DATA Level %d   ·   %d / %d DATA to next promotion   ·   %d Upgrade Points unspent" % [lvl, int(pr.xp), GameState.xp_needed(lvl), int(pr.points)], 14, UIKit.C_MUTED))
+	right.add_child(UIKit.label("Your Power is the average Power of your equipped gear. Viruses scale to it, and new gear drops around it. Promotions grant Upgrade Points only.", 12, UIKit.C_MUTED))
+	right.add_child(UIKit.label("%d Gold   ·   %d Corrupted Gold" % [int(pr.gold), int(pr.get("corrupted_gold", 0))], 14, UIKit.C_TEXT, true))
 	var xb := UIKit.bar(UIKit.C_DATA, 12)
 	xb.max_value = GameState.xp_needed(lvl)
 	xb.value = int(pr.xp)
@@ -400,12 +413,13 @@ func _tab_inventory() -> void:
 		var v := UIKit.vbox(4)
 		eq.add_child(v)
 		var inst := GameState.equipped(slot)
+		var slot_name := str(ItemUtil.SLOT_NAMES.get(slot, slot.capitalize()))
 		if inst.is_empty():
-			v.add_child(UIKit.empty_slot(96, slot.capitalize()))
+			v.add_child(UIKit.empty_slot(88, slot_name))
 		else:
-			v.add_child(UIKit.item_card(inst, int(inst.uid) == selected_uid, _select.bind(int(inst.uid)), 96))
-		v.add_child(UIKit.label(slot.capitalize(), 12, UIKit.C_MUTED, true))
-	left.add_child(UIKit.section("Inventory  %d / %d" % [GameState.unequipped_count(), GameState.INVENTORY_SIZE]))
+			v.add_child(UIKit.item_card(inst, int(inst.uid) == selected_uid, _select.bind(int(inst.uid)), 88))
+		v.add_child(UIKit.label(slot_name, 12, UIKit.C_MUTED, true))
+	left.add_child(UIKit.section("Inventory  %d / %d   ·   Power %d" % [GameState.unequipped_count(), GameState.INVENTORY_SIZE, GameState.power()]))
 	var grid := _grid(left, 8)
 	var count := 0
 	for it in _sorted_items(false):
@@ -416,7 +430,7 @@ func _tab_inventory() -> void:
 	var inst2 := GameState.find_item(selected_uid)
 	if inst2.is_empty():
 		right.add_child(UIKit.label("Select an item", 18, UIKit.C_TEXT, true))
-		var hint := UIKit.label("Click any asset to see its stats, effects and enchantment slots.\n\nEquip it to swap gear instantly, or salvage what you don't need for GOLD.\nEnchant and upgrade equipment at the Lobby service desks.", 13, UIKit.C_MUTED)
+		var hint := UIKit.label("Click any asset to see its stats, Power, effects and upgrade slots.\n\nEquip it to swap gear instantly, or salvage what you don't need for Gold.\nHigher-Power gear raises your Power (and the viruses' with it).\nUpgrade and reforge equipment at the Lobby service desks.", 13, UIKit.C_MUTED)
 		hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		right.add_child(hint)
 		return
@@ -435,14 +449,12 @@ func _tab_inventory() -> void:
 		eb.disabled = not can
 		actions.add_child(eb)
 		var price := ItemUtil.sell_price(inst2)
-		actions.add_child(UIKit.button("Salvage (+%d G)" % price, func() -> void:
+		actions.add_child(UIKit.button("Salvage (+%d Gold)" % price, func() -> void:
 			var got := GameState.sell_item(uid)
 			Audio.play("gold")
-			_set_message("Salvaged for %d GOLD." % got, true)
+			_set_message("Salvaged for %d Gold." % got, true)
 			selected_uid = -1
 			_rebuild(), "default"))
-		if not can:
-			right.add_child(UIKit.label("Requires DATA Level %d." % int(ItemUtil.def(inst2).get("level_req", 1)), 13, UIKit.C_DANGER, true))
 	if message != "":
 		right.add_child(_message_label())
 
@@ -464,14 +476,14 @@ func _tab_shop() -> void:
 		selected_uid = -1
 		_rebuild(), "primary" if shop_mode == "sell" else "default", 90))
 	top.add_child(UIKit.spacer())
-	top.add_child(UIKit.label("%d GOLD" % int(GameState.profile.gold), 16, UIKit.C_GOLD, true))
+	top.add_child(UIKit.label("%d Gold" % int(GameState.profile.gold), 16, UIKit.C_GOLD, true))
 	var cost := int(DB.shop.get("refresh_cost", 30))
-	var rb := UIKit.button("Request new catalogue (%d G)" % cost, func() -> void:
+	var rb := UIKit.button("Request new catalogue (%d Gold)" % cost, func() -> void:
 		if GameState.paid_refresh_shop():
 			Audio.play("buy")
 			_set_message("Catalogue refreshed.", true)
 		else:
-			_set_message("Not enough GOLD.", false)
+			_set_message("Not enough Gold.", false)
 		selected_uid = -1
 		_rebuild())
 	top.add_child(rb)
@@ -485,7 +497,7 @@ func _tab_shop() -> void:
 			v.add_child(UIKit.item_card(it, int(it.uid) == selected_uid, _select.bind(int(it.uid)), 120))
 			var price := GameState.shop_price(it)
 			v.add_child(UIKit.label(ItemUtil.display_name(it), 12, UIKit.C_TEXT, true))
-			v.add_child(UIKit.label("%d G" % price, 13, UIKit.C_GOLD if int(GameState.profile.gold) >= price else UIKit.C_DANGER, true))
+			v.add_child(UIKit.label("%d Gold" % price, 13, UIKit.C_GOLD if int(GameState.profile.gold) >= price else UIKit.C_DANGER, true))
 			if int(it.uid) == selected_uid:
 				selected = it
 		if (GameState.profile.get("shop_stock", []) as Array).is_empty():
@@ -507,7 +519,7 @@ func _tab_shop() -> void:
 		var uid := int(selected.uid)
 		if shop_mode == "buy":
 			var price2 := GameState.shop_price(selected)
-			var bb := UIKit.button("Buy for %d GOLD" % price2, func() -> void:
+			var bb := UIKit.button("Buy for %d Gold" % price2, func() -> void:
 				var err := GameState.buy_shop_item(uid)
 				if err == "":
 					_set_message("Purchased! It's in your inventory.", true)
@@ -519,10 +531,10 @@ func _tab_shop() -> void:
 			right.add_child(bb)
 		else:
 			var sp := ItemUtil.sell_price(selected)
-			right.add_child(UIKit.button("Sell for %d GOLD" % sp, func() -> void:
+			right.add_child(UIKit.button("Sell for %d Gold" % sp, func() -> void:
 				GameState.sell_item(uid)
 				Audio.play("gold")
-				_set_message("Sold for %d GOLD." % sp, true)
+				_set_message("Sold for %d Gold." % sp, true)
 				selected_uid = -1
 				_rebuild(), "primary"))
 	if message != "":
@@ -542,7 +554,7 @@ func _tab_forge() -> void:
 	var inst := GameState.find_item(selected_uid)
 	if inst.is_empty():
 		right.add_child(UIKit.label("IT Hardware Forge", 18, UIKit.C_TEXT, true))
-		var t := UIKit.label("\"We can make it faster, stronger, and slightly on fire.\"\n\nSelect a weapon, armor or accessory to upgrade it with GOLD.", 13, UIKit.C_MUTED)
+		var t := UIKit.label("\"We can make it faster, stronger, and slightly on fire.\"\n\nSelect a weapon, armor piece or accessory to reforge it with Gold.", 13, UIKit.C_MUTED)
 		t.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		right.add_child(t)
 	else:
@@ -555,7 +567,7 @@ func _tab_forge() -> void:
 			right.add_child(UIKit.rich(ItemUtil.describe(preview, inst)))
 			var cost := ItemUtil.upgrade_cost(inst)
 			var uid := int(inst.uid)
-			var b := UIKit.button("Upgrade for %d GOLD" % cost, func() -> void:
+			var b := UIKit.button("Reforge for %d Gold" % cost, func() -> void:
 				var err := GameState.upgrade_item(uid)
 				_set_message("Upgrade complete!" if err == "" else err, err == "")
 				_rebuild(), "primary")
@@ -576,15 +588,16 @@ func _tab_enchant() -> void:
 	var right: VBoxContainer = lr[1]
 	var head := UIKit.hbox(10)
 	left.add_child(head)
-	head.add_child(UIKit.label("%d DATA Points available" % int(GameState.profile.points), 16, UIKit.C_DATA, true))
-	head.add_child(UIKit.label("  ·  earned on every promotion, refunded when you salvage", 13, UIKit.C_MUTED))
+	head.add_child(UIKit.label("%d Upgrade Points" % int(GameState.profile.points), 16, UIKit.C_DATA, true))
+	head.add_child(UIKit.label("%d Corrupted Gold" % int(GameState.profile.get("corrupted_gold", 0)), 16, Color("#8a3fd6"), true))
+	head.add_child(UIKit.label("  ·  points come with every promotion; Corrupted Gold drops from corrupted viruses", 12, UIKit.C_MUTED))
 	var grid := _grid(left, 8)
 	for it in _sorted_items(true):
 		grid.add_child(UIKit.item_card(it, int(it.uid) == selected_uid, _select.bind(int(it.uid)), 84, "E" if GameState.is_equipped(int(it.uid)) else ""))
 	var inst := GameState.find_item(selected_uid)
 	if inst.is_empty():
-		right.add_child(UIKit.label("Software Licensing", 18, UIKit.C_TEXT, true))
-		var t := UIKit.label("Every item has enchantment slots (Common 1, Special 2, Unique 3). Each slot offers a choice of licensed effects. Pick one, then upgrade it from level I to III with DATA Points.", 13, UIKit.C_MUTED)
+		right.add_child(UIKit.label("Upgrades", 18, UIKit.C_TEXT, true))
+		var t := UIKit.label("Every item has upgrade slots (Common 1, Special 2, Unique 3). Each slot offers a choice of effects. Pick one with an Upgrade Point, then level it from I to III with Upgrade Points and Corrupted Gold.", 13, UIKit.C_MUTED)
 		t.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		right.add_child(t)
 		if message != "":
@@ -612,13 +625,13 @@ func _tab_enchant() -> void:
 		var chosen := str(s.get("chosen", ""))
 		var lvl := int(s.get("level", 0))
 		if chosen == "":
-			v.add_child(UIKit.label("Slot %d  ·  choose one (%d DATA Point)" % [i + 1, ItemUtil.enchant_point_cost(1)], 13, UIKit.C_MUTED, true))
+			v.add_child(UIKit.label("Slot %d  ·  choose one (%d Upgrade Point)" % [i + 1, ItemUtil.enchant_point_cost(1)], 13, UIKit.C_MUTED, true))
 			for opt in s.get("options", []):
 				var oid := str(opt)
 				var e: Dictionary = DB.enchantments.get(oid, {})
 				var ob := UIKit.button("", func() -> void:
 					var err := GameState.choose_enchant(uid, i, oid)
-					_set_message("Licensed %s!" % ItemUtil.enchant_name(oid, 1) if err == "" else err, err == "")
+					_set_message("Installed %s!" % ItemUtil.enchant_name(oid, 1) if err == "" else err, err == "")
 					_rebuild())
 				ob.custom_minimum_size = Vector2(0, 54)
 				ob.alignment = HORIZONTAL_ALIGNMENT_LEFT
@@ -638,78 +651,19 @@ func _tab_enchant() -> void:
 			if lvl < max_lvl:
 				v.add_child(UIKit.rich("[color=#6e6b66]Next (%s): %s[/color]" % [ItemUtil.ROMAN[lvl + 1], ItemUtil.enchant_desc(chosen, lvl + 1)]))
 				var pts := ItemUtil.enchant_point_cost(lvl + 1)
-				var gold := ItemUtil.enchant_gold_cost(lvl + 1)
-				var ub := UIKit.button("Upgrade to %s  (%d DATA Points, %d GOLD)" % [ItemUtil.ROMAN[lvl + 1], pts, gold], func() -> void:
+				var cgold := ItemUtil.enchant_gold_cost(lvl + 1)
+				var ub := UIKit.button("Level up to %s  (%d Upgrade Points, %d Corrupted Gold)" % [ItemUtil.ROMAN[lvl + 1], pts, cgold], func() -> void:
 					var err := GameState.upgrade_enchant(uid, i)
-					_set_message("Enchantment upgraded!" if err == "" else err, err == "")
+					_set_message("Upgrade levelled up!" if err == "" else err, err == "")
 					_rebuild(), "primary")
-				ub.disabled = int(GameState.profile.points) < pts or int(GameState.profile.gold) < gold
+				ub.disabled = int(GameState.profile.points) < pts or int(GameState.profile.get("corrupted_gold", 0)) < cgold
 				v.add_child(ub)
 			else:
 				v.add_child(UIKit.pill("MAX LEVEL", UIKit.C_OK))
 	if slots.is_empty():
-		right.add_child(UIKit.label("This item has no enchantment slots.", 13, UIKit.C_MUTED))
+		right.add_child(UIKit.label("This item has no upgrade slots.", 13, UIKit.C_MUTED))
 	if message != "":
 		right.add_child(_message_label())
-
-
-# ------------------------------------------------------------------ performance upgrades
-
-func _tab_growth() -> void:
-	var v := UIKit.vbox(10)
-	body.add_child(v)
-	var head := UIKit.hbox(16)
-	v.add_child(head)
-	head.add_child(UIKit.label("%d DATA Points" % int(GameState.profile.points), 18, UIKit.C_DATA, true))
-	head.add_child(UIKit.label("%d GOLD" % int(GameState.profile.gold), 18, UIKit.C_GOLD, true))
-	head.add_child(UIKit.label("Each rank costs DATA Points and GOLD. Higher ranks unlock as your DATA level rises.", 13, UIKit.C_MUTED))
-	if message != "":
-		v.add_child(_message_label())
-	var scroll := ScrollContainer.new()
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	scroll.follow_focus = true
-	v.add_child(scroll)
-	var list := UIKit.vbox(8)
-	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.add_child(list)
-	for up in DB.progression.get("stat_upgrades", []):
-		var id := str(up.id)
-		var rank := GameState.upgrade_rank(id)
-		var max_rank := int(up.get("max_rank", 5))
-		var row := UIKit.panel(Color.WHITE, 10, 14)
-		list.add_child(row)
-		var h := UIKit.hbox(16)
-		row.add_child(h)
-		var info := UIKit.vbox(4)
-		info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		h.add_child(info)
-		info.add_child(UIKit.label(str(up.get("name", id)), 16, UIKit.C_TEXT, true))
-		info.add_child(UIKit.label(str(up.get("description", "")), 13, UIKit.C_MUTED))
-		var pips := UIKit.hbox(4)
-		info.add_child(pips)
-		for i in max_rank:
-			var pip := Panel.new()
-			pip.custom_minimum_size = Vector2(18, 8)
-			pip.add_theme_stylebox_override("panel", UIKit.sb(UIKit.C_DATA if i < rank else Color(0, 0, 0, 0.1), 3, 0))
-			pips.add_child(pip)
-		if rank >= max_rank:
-			h.add_child(UIKit.pill("MAXED", UIKit.C_OK))
-			continue
-		var req := StatCalc.upgrade_level_req(up, rank)
-		var gold := StatCalc.upgrade_gold_cost(up, rank)
-		var pts := int(up.get("points", 1))
-		var cv := UIKit.vbox(2)
-		h.add_child(cv)
-		cv.add_child(UIKit.label("Rank %d / %d" % [rank, max_rank], 12, UIKit.C_MUTED, true))
-		var req_ok := int(GameState.profile.level) >= req
-		cv.add_child(UIKit.label("Requires DATA Lv %d" % req, 12, UIKit.C_OK if req_ok else UIKit.C_DANGER))
-		var b := UIKit.button("Upgrade  (%d pt, %d G)" % [pts, gold], func() -> void:
-			var err := GameState.buy_stat_upgrade(id)
-			_set_message(("%s upgraded!" % str(up.get("name", id))) if err == "" else err, err == "")
-			_rebuild(), "primary", 200)
-		b.disabled = not req_ok or int(GameState.profile.points) < pts or int(GameState.profile.gold) < gold
-		h.add_child(b)
 
 
 # ------------------------------------------------------------------ network map

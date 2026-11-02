@@ -1,51 +1,300 @@
 {
-  "_doc": "ARMOR. stats = flat bonuses added to the character (defense, max_hp, move_speed_pct, ...). visual.torso_color recolors the body; visual.parts are attached at the top-center of the torso (shoulders).",
+  "_doc": "ARMOR: helmet, chest, legs, boots. Basic pieces (\"tiers\": true) expand into Stock / Patched / Overclocked; Root pieces are fused uniques built on a basic piece (\"base\") and belong to one of five sets (Cablemail, Mainframe Plate, Kernel Panic, Floppy Scale, Liquid-Cooled). stats are Stock flat bonuses (scaled by rarity, Power and +upgrades). VISUALS: helmet parts are in HEAD units (1x1x1 box around the head centre, -z = face). chest: torso_color recolours the blazer and parts sit on the shoulders (authored for a 0.7 x 0.42 torso, y down from the shoulder line). legs: color recolours the trousers; parts are per leg, relative to the knee (+y up, -z front), mirrored on both legs. boots: color + sole recolour the shoes; parts are per foot, relative to the shoe centre. Parts with \"role\" get the Patched / Overclocked overlays automatically.",
   "items": [
-    {
-      "id": "business_casual_mail", "slot": "armor", "name": "Business Casual Mail", "rarity": "common", "level_req": 1, "price": 45,
-      "description": "Chainmail woven under a polo shirt. Dress code compliant, mostly.",
-      "stats": {"defense": 6}, "effects": [],
-      "visual": {"torso_color": "#8d93a0", "parts": [
-        {"shape": "box", "size": [0.74, 0.08, 0.42], "pos": [0, -0.02, 0], "color": "#6c717c"}
-      ]}
-    },
-    {
-      "id": "cardigan_of_plate", "slot": "armor", "name": "Cardigan of Plate", "rarity": "common", "level_req": 2, "price": 120,
-      "description": "Knitted steel. Warm, cozy, and slightly bulletproof.",
-      "stats": {"defense": 12, "max_hp": 10, "move_speed_pct": -0.03}, "effects": [],
-      "visual": {"torso_color": "#7d6a52", "parts": [
-        {"shape": "box", "size": [0.3, 0.14, 0.44], "pos": [-0.36, 0.0, 0], "color": "#a8adb6"},
-        {"shape": "box", "size": [0.3, 0.14, 0.44], "pos": [0.36, 0.0, 0], "color": "#a8adb6"}
-      ]}
-    },
-    {
-      "id": "clean_room_coverall", "slot": "armor", "name": "Clean Room Coverall", "rarity": "special", "level_req": 2, "price": 210,
-      "description": "Lightweight server-room gear. Static-free, friction-free.",
-      "stats": {"defense": 9, "move_speed_pct": 0.06}, "effects": [{"enchant": "bandwidth", "level": 1}],
-      "visual": {"torso_color": "#e9eef2", "parts": [
-        {"shape": "box", "size": [0.5, 0.1, 0.06], "pos": [0, -0.2, -0.22], "color": "#4fd1b0", "emit": 1.2}
-      ]}
-    },
-    {
-      "id": "firewall_cuirass", "slot": "armor", "name": "Firewall Cuirass", "rarity": "special", "level_req": 3, "price": 280,
-      "description": "Blocks all unauthorised incoming traffic, including swords.",
-      "stats": {"defense": 16, "max_hp": 15}, "effects": [{"enchant": "firewall", "level": 1}],
-      "visual": {"torso_color": "#5a2a2a", "parts": [
-        {"shape": "box", "size": [0.32, 0.16, 0.46], "pos": [-0.36, 0.0, 0], "color": "#3a1a1a"},
-        {"shape": "box", "size": [0.32, 0.16, 0.46], "pos": [0.36, 0.0, 0], "color": "#3a1a1a"},
-        {"shape": "box", "size": [0.44, 0.06, 0.05], "pos": [0, -0.25, -0.23], "color": "#ff4d4d", "emit": 2.0},
-        {"shape": "box", "size": [0.44, 0.06, 0.05], "pos": [0, -0.4, -0.23], "color": "#ff4d4d", "emit": 2.0}
-      ]}
-    },
-    {
-      "id": "executive_plate", "slot": "armor", "name": "Executive Suit of Armor", "rarity": "unique", "level_req": 5, "price": 750,
-      "description": "Tailored full plate with a silk pocket square. Enemies who die near you file for bankruptcy loudly.",
-      "stats": {"defense": 24, "max_hp": 40, "damage_pct": 0.05}, "effects": [{"enchant": "data_burst", "level": 2}],
-      "visual": {"torso_color": "#2b2d36", "parts": [
-        {"shape": "box", "size": [0.36, 0.2, 0.5], "pos": [-0.38, 0.02, 0], "color": "#c9a24a"},
-        {"shape": "box", "size": [0.36, 0.2, 0.5], "pos": [0.38, 0.02, 0], "color": "#c9a24a"},
-        {"shape": "box", "size": [0.1, 0.08, 0.04], "pos": [-0.16, -0.18, -0.22], "color": "#ffd75e", "emit": 1.5}
-      ]}
-    }
+    {"id": "squires_coif", "tiers": true, "slot": "helmet", "name": "Squire's Coif", "min_level": 1, "price": 30, "drop_sources": ["enemy", "chest", "boss"],
+     "description": "A chainmail hood. Itchy, but HR-approved.",
+     "stats": {"defense": 3, "max_hp": 6},
+     "visual": {"parts": [
+       {"shape": "dome", "size": [1.12, 0.56, 1.12], "pos": [0, 0.3, 0.03], "color": "#9aa0a8", "role": "shell"},
+       {"shape": "softbox", "size": [1.02, 0.5, 0.34], "pos": [0, -0.08, 0.42], "color": "#8a8f99"},
+       {"shape": "box", "size": [1.14, 0.08, 1.1], "pos": [0, 0.08, 0.03], "color": "#7a7f88"}
+     ]}},
+    {"id": "kettle_hat", "tiers": true, "slot": "helmet", "name": "Kettle Hat", "min_level": 1, "price": 60, "drop_sources": ["enemy", "chest", "boss"],
+     "description": "A steel brim that keeps the rain and the reorgs off.",
+     "stats": {"defense": 5, "max_hp": 10},
+     "visual": {"parts": [
+       {"shape": "dome", "size": [1.1, 0.52, 1.1], "pos": [0, 0.34, 0], "color": "#a9aeb8", "role": "shell"},
+       {"shape": "cyl", "size": [1.52, 0.05, 1.52], "pos": [0, 0.16, 0], "color": "#8a8f99"},
+       {"shape": "torus", "size": [1.12, 0.06, 1.12], "pos": [0, 0.2, 0], "color": "#6b6f78"}
+     ]}},
+    {"id": "great_helm", "tiers": true, "slot": "helmet", "name": "Great Helm", "min_level": 3, "price": 120, "drop_sources": ["enemy", "chest", "boss"],
+     "description": "Full coverage. You can't see the spreadsheet, and it can't see you.",
+     "stats": {"defense": 8, "max_hp": 14, "move_speed_pct": -0.02},
+     "visual": {"parts": [
+       {"shape": "softbox", "size": [1.14, 1.04, 1.12], "pos": [0, 0.04, 0], "color": "#b9bfc8", "role": "shell"},
+       {"shape": "box", "size": [0.74, 0.07, 0.05], "pos": [0, 0.1, -0.57], "color": "#1f1726"},
+       {"shape": "box", "size": [0.06, 0.6, 0.05], "pos": [0, -0.06, -0.575], "color": "#8a8f99"},
+       {"shape": "box", "size": [1.16, 0.06, 1.14], "pos": [0, 0.5, 0], "color": "#8a8f99"}
+     ]}},
+    {"id": "squires_gambeson", "tiers": true, "slot": "chest", "name": "Squire's Gambeson", "min_level": 1, "price": 35, "drop_sources": ["enemy", "chest", "boss"],
+     "description": "Quilted padding. Doubles as a nap blanket.",
+     "stats": {"defense": 5, "max_hp": 10},
+     "visual": {"torso_color": "#c9b48a", "parts": [
+       {"shape": "box", "size": [0.56, 0.08, 0.44], "pos": [0, -0.02, 0], "color": "#a8946c", "role": "trim"},
+       {"shape": "box", "size": [0.5, 0.03, 0.03], "pos": [0, -0.2, -0.22], "color": "#a8946c"},
+       {"shape": "box", "size": [0.54, 0.03, 0.03], "pos": [0, -0.34, -0.23], "color": "#a8946c"}
+     ]}},
+    {"id": "hauberk", "tiers": true, "slot": "chest", "name": "Hauberk", "min_level": 1, "price": 80, "drop_sources": ["enemy", "chest", "boss"],
+     "description": "A long mail shirt, worn under the corporate fleece.",
+     "stats": {"defense": 9, "max_hp": 15},
+     "visual": {"torso_color": "#9aa0a8", "parts": [
+       {"shape": "box", "size": [0.76, 0.1, 0.46], "pos": [0, -0.02, 0], "color": "#8a8f99", "role": "trim"},
+       {"shape": "box", "size": [0.7, 0.06, 0.47], "pos": [0, -0.46, 0], "color": "#5a3b26"},
+       {"shape": "box", "size": [0.08, 0.07, 0.05], "pos": [0, -0.46, -0.24], "color": "#c9a24a"}
+     ]}},
+    {"id": "cuirass", "tiers": true, "slot": "chest", "name": "Cuirass", "min_level": 3, "price": 140, "drop_sources": ["enemy", "chest", "boss"],
+     "description": "Polished plate. Reflects light, blame and swords.",
+     "stats": {"defense": 14, "max_hp": 20, "move_speed_pct": -0.03},
+     "visual": {"torso_color": "#c8ccd4", "parts": [
+       {"shape": "dome", "size": [0.3, 0.18, 0.46], "pos": [-0.38, 0.0, 0], "color": "#a9aeb8", "role": "trim"},
+       {"shape": "dome", "size": [0.3, 0.18, 0.46], "pos": [0.38, 0.0, 0], "color": "#a9aeb8"},
+       {"shape": "box", "size": [0.06, 0.4, 0.04], "pos": [0, -0.22, -0.23], "color": "#8a8f99"},
+       {"shape": "box", "size": [0.66, 0.05, 0.47], "pos": [0, -0.44, 0], "color": "#8a8f99"}
+     ]}},
+    {"id": "squires_chausses", "tiers": true, "slot": "legs", "name": "Squire's Chausses", "min_level": 1, "price": 30, "drop_sources": ["enemy", "chest", "boss"],
+     "description": "Padded leggings with a lot of pockets.",
+     "stats": {"defense": 3, "move_speed_pct": 0.01},
+     "visual": {"color": "#8a7a5e", "parts": [
+       {"shape": "box", "size": [0.22, 0.04, 0.23], "pos": [0, 0.05, 0], "color": "#6b5e48", "role": "trim"}
+     ]}},
+    {"id": "mail_chausses", "tiers": true, "slot": "legs", "name": "Mail Chausses", "min_level": 1, "price": 70, "drop_sources": ["enemy", "chest", "boss"],
+     "description": "Chainmail trousers. Very loud in quiet offices.",
+     "stats": {"defense": 6, "max_hp": 8},
+     "visual": {"color": "#9aa0a8", "parts": [
+       {"shape": "sphere", "size": [0.16, 0.12, 0.1], "pos": [0, 0.0, -0.1], "color": "#8a8f99", "role": "trim"}
+     ]}},
+    {"id": "greaves", "tiers": true, "slot": "legs", "name": "Greaves", "min_level": 3, "price": 120, "drop_sources": ["enemy", "chest", "boss"],
+     "description": "Shin plates for kicking down doors and deadlines.",
+     "stats": {"defense": 9, "max_hp": 10},
+     "visual": {"color": "#6b6f78", "parts": [
+       {"shape": "dome", "size": [0.18, 0.1, 0.12], "pos": [0, 0.02, -0.1], "rot": [-90, 0, 0], "color": "#c8ccd4", "role": "trim"},
+       {"shape": "box", "size": [0.2, 0.14, 0.05], "pos": [0, -0.07, -0.11], "color": "#a9aeb8"}
+     ]}},
+    {"id": "squires_boots", "tiers": true, "slot": "boots", "name": "Squire's Boots", "min_level": 1, "price": 30, "drop_sources": ["enemy", "chest", "boss"],
+     "description": "Soft leather. Silent on carpet tiles.",
+     "stats": {"move_speed_pct": 0.03, "defense": 1},
+     "visual": {"color": "#6b4a2e", "sole": "#3a2a1c", "parts": [
+       {"shape": "box", "size": [0.25, 0.05, 0.12], "pos": [0, 0.08, 0.08], "color": "#4a3424", "role": "trim"}
+     ]}},
+    {"id": "riveted_boots", "tiers": true, "slot": "boots", "name": "Riveted Boots", "min_level": 1, "price": 65, "drop_sources": ["enemy", "chest", "boss"],
+     "description": "Studded footman's boots. Formerly the Footman's, now yours.",
+     "stats": {"defense": 4, "move_speed_pct": 0.02},
+     "visual": {"color": "#5a3b26", "sole": "#2b2840", "parts": [
+       {"shape": "box", "size": [0.26, 0.06, 0.2], "pos": [0, 0.08, 0.06], "color": "#3a2a1c", "role": "trim"},
+       {"shape": "sphere", "size": [0.04, 0.04, 0.04], "pos": [-0.08, 0.04, -0.16], "color": "#c9a24a"},
+       {"shape": "sphere", "size": [0.04, 0.04, 0.04], "pos": [0.08, 0.04, -0.16], "color": "#c9a24a"}
+     ]}},
+    {"id": "sabatons", "tiers": true, "slot": "boots", "name": "Sabatons", "min_level": 3, "price": 120, "drop_sources": ["enemy", "chest", "boss"],
+     "description": "Segmented plate shoes. Every step is a press release.",
+     "stats": {"defense": 6, "max_hp": 6},
+     "visual": {"color": "#c8ccd4", "sole": "#6b6f78", "parts": [
+       {"shape": "box", "size": [0.25, 0.04, 0.08], "pos": [0, 0.05, -0.06], "color": "#a9aeb8", "role": "trim"},
+       {"shape": "box", "size": [0.24, 0.04, 0.08], "pos": [0, 0.02, -0.14], "color": "#a9aeb8"}
+     ]}},
+
+    {"id": "knotted_coif", "base": "squires_coif", "set": "Cablemail", "slot": "helmet", "rarity": "unique", "name": "Knotted Coif", "min_level": 3, "price": 30, "drop_sources": ["enemy", "chest", "boss"],
+     "description": "Woven from patch cables. Lightning loves it.",
+     "effects": [{"enchant": "chain_reaction", "level": 1}],
+     "visual": {"parts": [
+       {"shape": "dome", "size": [1.12, 0.56, 1.12], "pos": [0, 0.3, 0.03], "color": "#2b2840"},
+       {"shape": "softbox", "size": [1.02, 0.5, 0.34], "pos": [0, -0.08, 0.42], "color": "#2b2840"},
+       {"shape": "torus", "size": [1.14, 0.08, 1.14], "pos": [0, 0.12, 0.03], "color": "#ffcf4a"},
+       {"shape": "torus", "size": [1.0, 0.08, 1.0], "pos": [0, 0.32, 0.03], "color": "#3f9cf0"},
+       {"shape": "torus", "size": [0.7, 0.08, 0.7], "pos": [0, 0.48, 0.03], "color": "#ff4f6d"},
+       {"shape": "box", "size": [0.12, 0.1, 0.16], "pos": [0, 0.62, 0.0], "color": "#e8f4ff"},
+       {"shape": "box", "size": [0.06, 0.02, 0.04], "pos": [0, 0.68, -0.06], "color": "#39ff88", "emit": 3.0}
+     ]}},
+    {"id": "heatsink_great_helm", "base": "great_helm", "set": "Mainframe Plate", "slot": "helmet", "rarity": "unique", "name": "Heatsink Great Helm", "min_level": 5, "price": 120, "drop_sources": ["enemy", "chest", "boss"],
+     "description": "Aluminium fins keep your thoughts at a cool 40 degrees.",
+     "effects": [{"enchant": "firewall", "level": 1}, {"enchant": "redundancy", "level": 1}],
+     "visual": {"parts": [
+       {"shape": "softbox", "size": [1.14, 1.04, 1.12], "pos": [0, 0.04, 0], "color": "#2f7a4f"},
+       {"shape": "box", "size": [0.74, 0.07, 0.05], "pos": [0, 0.1, -0.57], "color": "#39ff88", "emit": 2.2},
+       {"shape": "box", "size": [0.5, 0.03, 0.03], "pos": [0.1, -0.2, -0.57], "color": "#e2aa2c"},
+       {"shape": "box", "size": [0.03, 0.3, 0.03], "pos": [-0.25, -0.1, -0.57], "color": "#e2aa2c"},
+       {"shape": "box", "size": [0.04, 0.26, 0.9], "pos": [-0.3, 0.64, 0], "color": "#c8ccd4"},
+       {"shape": "box", "size": [0.04, 0.3, 0.9], "pos": [-0.15, 0.66, 0], "color": "#c8ccd4"},
+       {"shape": "box", "size": [0.04, 0.32, 0.9], "pos": [0.0, 0.67, 0], "color": "#c8ccd4"},
+       {"shape": "box", "size": [0.04, 0.3, 0.9], "pos": [0.15, 0.66, 0], "color": "#c8ccd4"},
+       {"shape": "box", "size": [0.04, 0.26, 0.9], "pos": [0.3, 0.64, 0], "color": "#c8ccd4"}
+     ]}},
+    {"id": "bluescreen_helm", "base": "kettle_hat", "set": "Kernel Panic", "slot": "helmet", "rarity": "unique", "name": "Bluescreen Helm", "min_level": 4, "price": 60, "drop_sources": ["enemy", "chest", "boss"],
+     "description": "A fatal exception occurred. For your enemies.",
+     "effects": [{"enchant": "crit_detonate", "level": 1}],
+     "visual": {"parts": [
+       {"shape": "dome", "size": [1.1, 0.52, 1.1], "pos": [0, 0.34, 0], "color": "#0078d7"},
+       {"shape": "cyl", "size": [1.52, 0.05, 1.52], "pos": [0, 0.16, 0], "color": "#005a9e"},
+       {"shape": "box", "size": [0.5, 0.3, 0.04], "pos": [0, 0.42, -0.5], "rot": [-25, 0, 0], "color": "#0a5fb4", "emit": 1.2},
+       {"shape": "box", "size": [0.05, 0.05, 0.02], "pos": [-0.1, 0.48, -0.54], "rot": [-25, 0, 0], "color": "#ffffff", "emit": 2.5},
+       {"shape": "box", "size": [0.05, 0.05, 0.02], "pos": [-0.1, 0.4, -0.5], "rot": [-25, 0, 0], "color": "#ffffff", "emit": 2.5},
+       {"shape": "torus", "size": [0.22, 0.05, 0.22], "pos": [0.07, 0.44, -0.53], "rot": [65, 0, 0], "color": "#ffffff", "emit": 2.5}
+     ]}},
+    {"id": "write_protect_coif", "base": "squires_coif", "set": "Floppy Scale", "slot": "helmet", "rarity": "unique", "name": "Write-Protect Coif", "min_level": 3, "price": 30, "drop_sources": ["enemy", "chest", "boss"],
+     "description": "Read-only. Nothing gets written to your head, including damage.",
+     "effects": [{"enchant": "exit_interview", "level": 1}, {"enchant": "data_magnet", "level": 1}],
+     "visual": {"parts": [
+       {"shape": "dome", "size": [1.12, 0.56, 1.12], "pos": [0, 0.3, 0.03], "color": "#2b2f5a"},
+       {"shape": "softbox", "size": [1.02, 0.5, 0.34], "pos": [0, -0.08, 0.42], "color": "#2b2f5a"},
+       {"shape": "box", "size": [0.5, 0.26, 0.04], "pos": [0, 0.38, -0.44], "rot": [-35, 0, 0], "color": "#c8ccd4"},
+       {"shape": "box", "size": [0.16, 0.14, 0.02], "pos": [0.08, 0.4, -0.47], "rot": [-35, 0, 0], "color": "#2b2f5a"},
+       {"shape": "box", "size": [0.36, 0.14, 0.03], "pos": [0, 0.08, -0.56], "color": "#f3eee2"},
+       {"shape": "box", "size": [0.08, 0.08, 0.06], "pos": [0.42, 0.3, -0.3], "color": "#ff4f6d"}
+     ]}},
+    {"id": "fan_visor", "base": "great_helm", "set": "Liquid-Cooled", "slot": "helmet", "rarity": "unique", "name": "Fan Visor", "min_level": 5, "price": 120, "drop_sources": ["enemy", "chest", "boss"],
+     "description": "A 120 mm case fan where your face used to be. RGB included.",
+     "effects": [{"enchant": "overclock", "level": 2}],
+     "visual": {"parts": [
+       {"shape": "softbox", "size": [1.14, 1.04, 1.12], "pos": [0, 0.04, 0], "color": "#c8ccd4"},
+       {"shape": "cyl", "size": [0.66, 0.06, 0.66], "pos": [0, 0.02, -0.56], "rot": [90, 0, 0], "color": "#2b2840"},
+       {"shape": "torus", "size": [0.7, 0.07, 0.7], "pos": [0, 0.02, -0.58], "rot": [90, 0, 0], "color": "#39d0ff", "emit": 2.5},
+       {"shape": "box", "size": [0.56, 0.08, 0.02], "pos": [0, 0.02, -0.6], "rot": [0, 0, 30], "color": "#8a8f99"},
+       {"shape": "box", "size": [0.56, 0.08, 0.02], "pos": [0, 0.02, -0.6], "rot": [0, 0, -30], "color": "#8a8f99"},
+       {"shape": "box", "size": [0.08, 0.56, 0.02], "pos": [0, 0.02, -0.6], "color": "#8a8f99"},
+       {"shape": "cyl", "size": [0.08, 0.7, 0.08], "pos": [0.58, 0.0, 0.1], "color": "#39d0ff", "emit": 1.4}
+     ]}},
+    {"id": "cablemail_hauberk", "base": "hauberk", "set": "Cablemail", "slot": "chest", "rarity": "unique", "name": "Cablemail Hauberk", "min_level": 3, "price": 80, "drop_sources": ["enemy", "chest", "boss"],
+     "description": "Thousands of braided cables. Static discharge included.",
+     "effects": [{"enchant": "chain_reaction", "level": 1}, {"enchant": "bandwidth", "level": 1}],
+     "visual": {"torso_color": "#3a3560", "parts": [
+       {"shape": "box", "size": [0.76, 0.1, 0.46], "pos": [0, -0.02, 0], "color": "#2b2840"},
+       {"shape": "cyl", "size": [0.05, 0.62, 0.05], "pos": [0, -0.16, -0.23], "rot": [0, 0, 90], "color": "#ffcf4a"},
+       {"shape": "cyl", "size": [0.05, 0.64, 0.05], "pos": [0, -0.26, -0.235], "rot": [0, 0, 90], "color": "#3f9cf0"},
+       {"shape": "cyl", "size": [0.05, 0.66, 0.05], "pos": [0, -0.36, -0.24], "rot": [0, 0, 90], "color": "#ff4f6d"},
+       {"shape": "box", "size": [0.1, 0.08, 0.12], "pos": [0, -0.26, -0.27], "color": "#e8f4ff"},
+       {"shape": "box", "size": [0.05, 0.02, 0.03], "pos": [0, -0.22, -0.33], "color": "#39ff88", "emit": 3.0}
+     ]}},
+    {"id": "motherboard_cuirass", "base": "cuirass", "set": "Mainframe Plate", "slot": "chest", "rarity": "unique", "name": "Motherboard Cuirass", "min_level": 5, "price": 140, "drop_sources": ["enemy", "chest", "boss"],
+     "description": "Every trace routes damage away from you.",
+     "effects": [{"enchant": "firewall", "level": 2}, {"enchant": "redundancy", "level": 1}],
+     "visual": {"torso_color": "#2f7a4f", "parts": [
+       {"shape": "box", "size": [0.3, 0.18, 0.46], "pos": [-0.38, 0.0, 0], "color": "#c8ccd4"},
+       {"shape": "box", "size": [0.3, 0.18, 0.46], "pos": [0.38, 0.0, 0], "color": "#c8ccd4"},
+       {"shape": "box", "size": [0.2, 0.2, 0.04], "pos": [0, -0.22, -0.23], "color": "#2b2840"},
+       {"shape": "box", "size": [0.12, 0.12, 0.02], "pos": [0, -0.22, -0.255], "color": "#c8ccd4"},
+       {"shape": "box", "size": [0.5, 0.025, 0.02], "pos": [0, -0.08, -0.22], "color": "#e2aa2c"},
+       {"shape": "box", "size": [0.025, 0.3, 0.02], "pos": [-0.2, -0.26, -0.22], "color": "#e2aa2c"},
+       {"shape": "box", "size": [0.025, 0.3, 0.02], "pos": [0.2, -0.26, -0.22], "color": "#e2aa2c"},
+       {"shape": "box", "size": [0.04, 0.04, 0.02], "pos": [0.15, -0.4, -0.235], "color": "#39ff88", "emit": 3.0}
+     ]}},
+    {"id": "glitch_hauberk", "base": "hauberk", "set": "Kernel Panic", "slot": "chest", "rarity": "unique", "name": "Glitch Hauberk", "min_level": 4, "price": 80, "drop_sources": ["enemy", "chest", "boss"],
+     "description": "Its pixels refuse to stay in one place, and neither do yours.",
+     "effects": [{"enchant": "crit_detonate", "level": 1}, {"enchant": "glitch_strike", "level": 1}],
+     "visual": {"torso_color": "#0078d7", "parts": [
+       {"shape": "box", "size": [0.76, 0.1, 0.46], "pos": [0, -0.02, 0], "color": "#005a9e"},
+       {"shape": "box", "size": [0.16, 0.06, 0.03], "pos": [-0.14, -0.14, -0.235], "color": "#ff4fd8", "emit": 2.2},
+       {"shape": "box", "size": [0.22, 0.05, 0.03], "pos": [0.1, -0.24, -0.235], "color": "#39ffd8", "emit": 2.2},
+       {"shape": "box", "size": [0.1, 0.07, 0.03], "pos": [-0.04, -0.36, -0.24], "color": "#ffffff", "emit": 2.0},
+       {"shape": "box", "size": [0.12, 0.04, 0.03], "pos": [0.2, -0.4, -0.24], "color": "#ff4fd8", "emit": 2.2}
+     ]}},
+    {"id": "floppy_scalemail", "base": "hauberk", "set": "Floppy Scale", "slot": "chest", "rarity": "unique", "name": "Floppy Scalemail", "min_level": 3, "price": 80, "drop_sources": ["enemy", "chest", "boss"],
+     "description": "1.44 MB of protection per scale. Back it up often.",
+     "effects": [{"enchant": "exit_interview", "level": 2}, {"enchant": "data_magnet", "level": 1}],
+     "visual": {"torso_color": "#2b2f5a", "parts": [
+       {"shape": "box", "size": [0.16, 0.14, 0.03], "pos": [-0.18, -0.14, -0.235], "color": "#3a3f78"},
+       {"shape": "box", "size": [0.16, 0.14, 0.03], "pos": [0.0, -0.14, -0.235], "color": "#5a3a78"},
+       {"shape": "box", "size": [0.16, 0.14, 0.03], "pos": [0.18, -0.14, -0.235], "color": "#2b2840"},
+       {"shape": "box", "size": [0.16, 0.14, 0.03], "pos": [-0.09, -0.3, -0.24], "color": "#2b2840"},
+       {"shape": "box", "size": [0.16, 0.14, 0.03], "pos": [0.09, -0.3, -0.24], "color": "#3a3f78"},
+       {"shape": "box", "size": [0.08, 0.05, 0.02], "pos": [-0.18, -0.1, -0.255], "color": "#c8ccd4"},
+       {"shape": "box", "size": [0.08, 0.05, 0.02], "pos": [0.0, -0.1, -0.255], "color": "#c8ccd4"},
+       {"shape": "box", "size": [0.08, 0.05, 0.02], "pos": [0.18, -0.1, -0.255], "color": "#c8ccd4"},
+       {"shape": "box", "size": [0.08, 0.05, 0.02], "pos": [-0.09, -0.26, -0.26], "color": "#c8ccd4"},
+       {"shape": "box", "size": [0.08, 0.05, 0.02], "pos": [0.09, -0.26, -0.26], "color": "#c8ccd4"}
+     ]}},
+    {"id": "radiator_cuirass", "base": "cuirass", "set": "Liquid-Cooled", "slot": "chest", "rarity": "unique", "name": "Radiator Cuirass", "min_level": 5, "price": 140, "drop_sources": ["enemy", "chest", "boss"],
+     "description": "Coolant runs through every rib. Your temper stays low and your speed high.",
+     "effects": [{"enchant": "overclock", "level": 1}, {"enchant": "adrenaline", "level": 1}],
+     "visual": {"torso_color": "#c8ccd4", "parts": [
+       {"shape": "dome", "size": [0.3, 0.18, 0.46], "pos": [-0.38, 0.0, 0], "color": "#8a8f99"},
+       {"shape": "dome", "size": [0.3, 0.18, 0.46], "pos": [0.38, 0.0, 0], "color": "#8a8f99"},
+       {"shape": "box", "size": [0.03, 0.3, 0.03], "pos": [-0.15, -0.26, -0.23], "color": "#6b6f78"},
+       {"shape": "box", "size": [0.03, 0.3, 0.03], "pos": [-0.075, -0.26, -0.23], "color": "#6b6f78"},
+       {"shape": "box", "size": [0.03, 0.3, 0.03], "pos": [0.0, -0.26, -0.23], "color": "#6b6f78"},
+       {"shape": "box", "size": [0.03, 0.3, 0.03], "pos": [0.075, -0.26, -0.23], "color": "#6b6f78"},
+       {"shape": "box", "size": [0.03, 0.3, 0.03], "pos": [0.15, -0.26, -0.23], "color": "#6b6f78"},
+       {"shape": "cyl", "size": [0.06, 0.5, 0.06], "pos": [-0.3, -0.14, -0.22], "rot": [0, 0, 40], "color": "#39d0ff", "emit": 1.6},
+       {"shape": "cyl", "size": [0.06, 0.5, 0.06], "pos": [0.3, -0.14, -0.22], "rot": [0, 0, -40], "color": "#39d0ff", "emit": 1.6}
+     ]}},
+    {"id": "spool_chausses", "base": "mail_chausses", "set": "Cablemail", "slot": "legs", "rarity": "unique", "name": "Spool Chausses", "min_level": 3, "price": 70, "drop_sources": ["enemy", "chest", "boss"],
+     "description": "Cable spools at the knee. Unwinds into a sprint.",
+     "effects": [{"enchant": "bandwidth", "level": 2}],
+     "visual": {"color": "#2b2840", "parts": [
+       {"shape": "cyl", "size": [0.22, 0.1, 0.22], "pos": [0, 0.0, 0], "color": "#ffcf4a"},
+       {"shape": "cyl", "size": [0.25, 0.03, 0.25], "pos": [0, 0.055, 0], "color": "#8a8f99"},
+       {"shape": "cyl", "size": [0.25, 0.03, 0.25], "pos": [0, -0.055, 0], "color": "#8a8f99"}
+     ]}},
+    {"id": "ribbon_cable_greaves", "base": "greaves", "set": "Mainframe Plate", "slot": "legs", "rarity": "unique", "name": "Ribbon-Cable Greaves", "min_level": 5, "price": 120, "drop_sources": ["enemy", "chest", "boss"],
+     "description": "Forty-pin shin guards. Every pin is load-bearing.",
+     "effects": [{"enchant": "redundancy", "level": 2}],
+     "visual": {"color": "#2f7a4f", "parts": [
+       {"shape": "box", "size": [0.2, 0.18, 0.04], "pos": [0, -0.06, -0.11], "color": "#c8ccd4"},
+       {"shape": "box", "size": [0.025, 0.17, 0.02], "pos": [-0.06, -0.06, -0.135], "color": "#ff4f6d"},
+       {"shape": "box", "size": [0.025, 0.17, 0.02], "pos": [-0.02, -0.06, -0.135], "color": "#ffcf4a"},
+       {"shape": "box", "size": [0.025, 0.17, 0.02], "pos": [0.02, -0.06, -0.135], "color": "#39ff88"},
+       {"shape": "box", "size": [0.025, 0.17, 0.02], "pos": [0.06, -0.06, -0.135], "color": "#3f9cf0"}
+     ]}},
+    {"id": "segfault_greaves", "base": "greaves", "set": "Kernel Panic", "slot": "legs", "rarity": "unique", "name": "Segfault Greaves", "min_level": 4, "price": 120, "drop_sources": ["enemy", "chest", "boss"],
+     "description": "Accessing memory they shouldn't. Kicks accordingly.",
+     "effects": [{"enchant": "crit_detonate", "level": 1}],
+     "visual": {"color": "#0078d7", "parts": [
+       {"shape": "box", "size": [0.2, 0.16, 0.05], "pos": [0, -0.06, -0.11], "color": "#005a9e"},
+       {"shape": "box", "size": [0.08, 0.04, 0.02], "pos": [-0.05, -0.02, -0.14], "color": "#ff4fd8", "emit": 2.2},
+       {"shape": "box", "size": [0.1, 0.03, 0.02], "pos": [0.04, -0.1, -0.14], "color": "#39ffd8", "emit": 2.2}
+     ]}},
+    {"id": "three_half_inch_tassets", "base": "mail_chausses", "set": "Floppy Scale", "slot": "legs", "rarity": "unique", "name": "3½-Inch Tassets", "min_level": 3, "price": 70, "drop_sources": ["enemy", "chest", "boss"],
+     "description": "Floppy disks hung from the belt. Each one holds a backup of your health.",
+     "effects": [{"enchant": "exit_interview", "level": 1}],
+     "visual": {"color": "#2b2f5a", "parts": [
+       {"shape": "box", "size": [0.22, 0.2, 0.04], "pos": [0, 0.12, -0.12], "color": "#3a3f78"},
+       {"shape": "box", "size": [0.12, 0.07, 0.02], "pos": [0.02, 0.18, -0.145], "color": "#c8ccd4"},
+       {"shape": "box", "size": [0.14, 0.05, 0.02], "pos": [0, 0.06, -0.145], "color": "#f3eee2"}
+     ]}},
+    {"id": "coolant_greaves", "base": "greaves", "set": "Liquid-Cooled", "slot": "legs", "rarity": "unique", "name": "Coolant Greaves", "min_level": 5, "price": 120, "drop_sources": ["enemy", "chest", "boss"],
+     "description": "Coolant loops down each shin. Legs that never overheat.",
+     "effects": [{"enchant": "adrenaline", "level": 1}],
+     "visual": {"color": "#c8ccd4", "parts": [
+       {"shape": "box", "size": [0.2, 0.16, 0.05], "pos": [0, -0.06, -0.11], "color": "#a9aeb8"},
+       {"shape": "cyl", "size": [0.05, 0.22, 0.05], "pos": [-0.06, -0.06, -0.14], "color": "#39d0ff", "emit": 1.8},
+       {"shape": "cyl", "size": [0.05, 0.22, 0.05], "pos": [0.06, -0.06, -0.14], "color": "#39d0ff", "emit": 1.8}
+     ]}},
+    {"id": "plug_and_play_boots", "base": "riveted_boots", "set": "Cablemail", "slot": "boots", "rarity": "unique", "name": "Plug-and-Play Boots", "min_level": 3, "price": 65, "drop_sources": ["enemy", "chest", "boss"],
+     "description": "No drivers required. Just plug in and run.",
+     "effects": [{"enchant": "bandwidth", "level": 2}],
+     "visual": {"color": "#f3eee2", "sole": "#2b2840", "parts": [
+       {"shape": "box", "size": [0.04, 0.04, 0.1], "pos": [-0.05, 0.0, -0.22], "color": "#c8ccd4"},
+       {"shape": "box", "size": [0.04, 0.04, 0.1], "pos": [0.05, 0.0, -0.22], "color": "#c8ccd4"},
+       {"shape": "cyl", "size": [0.05, 0.3, 0.05], "pos": [0, 0.08, 0.2], "rot": [70, 0, 0], "color": "#2b2840"}
+     ]}},
+    {"id": "capacitor_sabatons", "base": "sabatons", "set": "Mainframe Plate", "slot": "boots", "rarity": "unique", "name": "Capacitor Sabatons", "min_level": 5, "price": 120, "drop_sources": ["enemy", "chest", "boss"],
+     "description": "Stores up every step, then discharges it into your enemies.",
+     "effects": [{"enchant": "firewall", "level": 1}],
+     "visual": {"color": "#2f3157", "sole": "#c8ccd4", "parts": [
+       {"shape": "cyl", "size": [0.09, 0.16, 0.09], "pos": [-0.15, 0.06, 0.02], "color": "#3f6fd0"},
+       {"shape": "cyl", "size": [0.09, 0.16, 0.09], "pos": [0.15, 0.06, 0.02], "color": "#3f6fd0"},
+       {"shape": "cyl", "size": [0.095, 0.03, 0.095], "pos": [-0.15, 0.1, 0.02], "color": "#c8ccd4"},
+       {"shape": "cyl", "size": [0.095, 0.03, 0.095], "pos": [0.15, 0.1, 0.02], "color": "#c8ccd4"}
+     ]}},
+    {"id": "null_boots", "base": "squires_boots", "set": "Kernel Panic", "slot": "boots", "rarity": "unique", "name": "Null Boots", "min_level": 4, "price": 30, "drop_sources": ["enemy", "chest", "boss"],
+     "description": "Point to nothing. Leave no footprints. Dereference with care.",
+     "effects": [{"enchant": "glitch_strike", "level": 1}],
+     "visual": {"color": "#111118", "sole": "#b24bff", "parts": [
+       {"shape": "box", "size": [0.26, 0.03, 0.36], "pos": [0, -0.09, -0.02], "color": "#c04bff", "emit": 2.5}
+     ]}},
+    {"id": "backup_boots", "base": "riveted_boots", "set": "Floppy Scale", "slot": "boots", "rarity": "unique", "name": "Backup Boots", "min_level": 3, "price": 65, "drop_sources": ["enemy", "chest", "boss"],
+     "description": "Tape reels on each heel record your every move, just in case.",
+     "effects": [{"enchant": "exit_interview", "level": 1}, {"enchant": "data_magnet", "level": 1}],
+     "visual": {"color": "#3a5a8a", "sole": "#2b2840", "parts": [
+       {"shape": "cyl", "size": [0.12, 0.03, 0.12], "pos": [-0.14, 0.04, 0.06], "rot": [0, 0, 90], "color": "#2b2840"},
+       {"shape": "cyl", "size": [0.12, 0.03, 0.12], "pos": [0.14, 0.04, 0.06], "rot": [0, 0, 90], "color": "#2b2840"},
+       {"shape": "cyl", "size": [0.05, 0.035, 0.05], "pos": [-0.145, 0.04, 0.06], "rot": [0, 0, 90], "color": "#f3eee2"},
+       {"shape": "cyl", "size": [0.05, 0.035, 0.05], "pos": [0.145, 0.04, 0.06], "rot": [0, 0, 90], "color": "#f3eee2"}
+     ]}},
+    {"id": "thermal_paste_boots", "base": "sabatons", "set": "Liquid-Cooled", "slot": "boots", "rarity": "unique", "name": "Thermal-Paste Boots", "min_level": 5, "price": 120, "drop_sources": ["enemy", "chest", "boss"],
+     "description": "A pea-sized blob on each toe. Conducts speed straight to your feet.",
+     "effects": [{"enchant": "adrenaline", "level": 1}, {"enchant": "overclock", "level": 1}],
+     "visual": {"color": "#c8ccd4", "sole": "#ff7a1a", "parts": [
+       {"shape": "sphere", "size": [0.12, 0.07, 0.1], "pos": [0, 0.07, -0.12], "color": "#9aa0a8"},
+       {"shape": "box", "size": [0.26, 0.025, 0.36], "pos": [0, -0.09, -0.02], "color": "#ff7a1a", "emit": 2.0}
+     ]}}
   ]
 }

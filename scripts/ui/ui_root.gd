@@ -6,6 +6,7 @@ extends CanvasLayer
 const POST_SHADER := preload("res://shaders/post.gdshader")
 
 var root: Control
+var interact_block_until := 0  # msec; set when B (also Interact) closes a menu
 var hud: HUD
 var toasts: Toasts
 var app: AppWindow
@@ -229,6 +230,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		if app.visible or dialog_layer.get_child_count() > 0 or pause_menu.visible:
 			toggle_pause()
 			get_viewport().set_input_as_handled()
+			# B is also Interact: don't let the press that closed the menu reach the
+			# player and reopen a terminal or desk they are standing next to.
+			interact_block_until = Time.get_ticks_msec() + 250
 			return
 	if mode != "playing":
 		return
@@ -411,7 +415,7 @@ func _build_death() -> Control:
 	var t := UIKit.label("SESSION TERMINATED", 46, Color("#ff5a6a"), true)
 	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	v.add_child(t)
-	var s := UIKit.label("Your connection to the simulation was lost.\nIT has preserved all of your DATA, GOLD, equipment and unlocked terminals.", 16, Color(1, 0.9, 0.92))
+	var s := UIKit.label("Your connection to the simulation was lost.\nIT has preserved all of your DATA, Gold, Corrupted Gold, equipment and unlocked terminals.", 16, Color(1, 0.9, 0.92))
 	s.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	v.add_child(s)
 	var b := UIKit.button("Reconnect at the Lobby", respawn, "primary", 260)

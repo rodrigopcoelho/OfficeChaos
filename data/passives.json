@@ -1,0 +1,20 @@
+{
+  "_doc": "PASSIVE ABILITIES, separate from rarity. Every item instance rolls progression.rarities[r].passives of these when it is created (Loot.make_instance). Each passive adds one stat; 'values' gives the bonus per rarity (higher rarities stronger, lower ones still useful). 'slots' limits which gear can roll it (weapon / armor = any armor piece / accessory). 'rarities' (optional) makes a passive exclusive to those rarities. Loot passives are capped by progression.loot_modifiers.",
+  "passives": [
+    {"id": "melee_damage", "name": "Sharpened", "stat": "damage_pct", "slots": ["weapon", "armor", "accessory"], "values": {"rare": 0.1, "special": 0.2, "unique": 0.3}, "text": "+{v%}% melee damage"},
+    {"id": "crit_chance", "name": "Precise", "stat": "crit_chance", "slots": ["weapon", "armor", "accessory"], "values": {"rare": 0.03, "special": 0.05, "unique": 0.08}, "text": "+{v%}% critical hit chance"},
+    {"id": "crit_damage", "name": "Brutal", "stat": "crit_mult_bonus", "slots": ["weapon", "accessory"], "values": {"rare": 0.15, "special": 0.25, "unique": 0.4}, "text": "+{v%}% critical damage"},
+    {"id": "attack_speed", "name": "Swift", "stat": "attack_speed_pct", "slots": ["weapon", "armor", "accessory"], "values": {"rare": 0.06, "special": 0.1, "unique": 0.15}, "text": "+{v%}% attack speed"},
+    {"id": "defense", "name": "Reinforced", "stat": "defense", "slots": ["armor", "accessory"], "values": {"rare": 4, "special": 7, "unique": 11}, "text": "+{v} defense"},
+    {"id": "vitality", "name": "Hardy", "stat": "max_hp", "slots": ["armor", "accessory"], "values": {"rare": 12, "special": 22, "unique": 35}, "text": "+{v} max HP"},
+    {"id": "move_speed", "name": "Nimble", "stat": "move_speed_pct", "slots": ["armor", "accessory"], "values": {"rare": 0.04, "special": 0.07, "unique": 0.1}, "text": "+{v%}% movement speed"},
+    {"id": "elemental", "name": "Charged", "stat": "proc_damage_pct", "slots": ["weapon", "armor", "accessory"], "values": {"rare": 0.15, "special": 0.3, "unique": 0.45}, "text": "+{v%}% elemental damage (chains, burns, explosions)"},
+    {"id": "healing", "name": "Restorative", "stat": "hp_regen", "slots": ["armor", "accessory"], "values": {"rare": 0.8, "special": 1.5, "unique": 2.4}, "text": "+{v} HP regenerated per second"},
+    {"id": "cooldowns", "name": "Efficient", "stat": "cooldown_pct", "slots": ["armor", "accessory"], "values": {"rare": 0.05, "special": 0.08, "unique": 0.12}, "text": "-{v%}% ability cooldowns"},
+    {"id": "drop_rate", "name": "Scavenger", "stat": "drop_rate", "slots": ["armor", "accessory"], "values": {"rare": 0.05, "special": 0.1, "unique": 0.15}, "text": "+{v%}% equipment drop rate"},
+    {"id": "rare_find", "name": "Lucky", "stat": "rare_find", "slots": ["helmet", "accessory"], "values": {"rare": 0.03, "special": 0.05, "unique": 0.08}, "text": "+{v%}% chance to find Patched or better gear"},
+    {"id": "unique_find", "name": "Root Access", "stat": "unique_find", "slots": ["helmet", "accessory"], "values": {"special": 0.005, "unique": 0.01}, "rarities": ["special", "unique"], "text": "+{v%}% chance to find Root gear"},
+    {"id": "data_gain", "name": "Studious", "stat": "data_gain_pct", "slots": ["armor", "accessory"], "values": {"rare": 0.08, "special": 0.14, "unique": 0.2}, "text": "+{v%}% DATA gained"},
+    {"id": "gold_gain", "name": "Bonus-Eligible", "stat": "gold_gain_pct", "slots": ["armor", "accessory"], "values": {"rare": 0.08, "special": 0.14, "unique": 0.2}, "text": "+{v%}% Gold gained"}
+  ]
+}

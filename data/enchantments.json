@@ -46,8 +46,14 @@
     {"id": "exit_interview", "name": "Exit Interview", "hook": "on_kill", "effect": "heal_on_kill", "slots": ["weapon", "armor"], "color": "#ff8fb0", "rollable": false,
      "description": "Kills restore {value} health.",
      "levels": [{"value": 4}, {"value": 7}, {"value": 11}]},
+    {"id": "crit_detonate", "name": "Kernel Panic", "hook": "on_crit", "effect": "explode_on_crit", "slots": ["weapon", "armor"], "color": "#ff4fd8", "rollable": false,
+     "description": "Critical hits trigger an explosion for {mult%}% weapon damage in a {radius}m radius.",
+     "levels": [{"mult": 0.6, "radius": 2.5}, {"mult": 0.9, "radius": 3.0}, {"mult": 1.3, "radius": 3.5}]},
+    {"id": "adrenaline", "name": "Zero Latency", "hook": "post_hit", "effect": "speed_on_hit", "slots": ["weapon", "armor"], "color": "#39ffd8", "rollable": false,
+     "description": "Attacks grant +{bonus%}% movement speed for {duration}s.",
+     "levels": [{"bonus": 0.12, "duration": 2.0}, {"bonus": 0.2, "duration": 2.5}, {"bonus": 0.3, "duration": 3.0}]},
     {"id": "golden_parachute", "name": "Golden Parachute", "hook": "on_kill", "effect": "gold_on_kill", "slots": ["weapon"], "color": "#ffcc33", "rollable": false,
-     "description": "{chance%}% chance for kills to pay out {value} extra GOLD.",
+     "description": "{chance%}% chance for kills to pay out {value} extra Gold.",
      "levels": [{"chance": 0.3, "value": 5}, {"chance": 0.4, "value": 8}, {"chance": 0.5, "value": 12}]}
   ]
 }

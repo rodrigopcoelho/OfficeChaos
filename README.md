@@ -35,27 +35,36 @@ The employees (you, the Lobby staff and every preview) follow the Animal Crossin
 - **Readability:** heads tilt up slightly and faces get extra light, so they read from the high game camera.
 - **Shared lighting:** both shaders share their lighting through `shaders/toon_light.gdshaderinc`.
 
-Render every hairstyle, face, expression and body, plus the Lobby desks, as reference sheets in `user://char_sheet/` (run it windowed):
+Render every hairstyle, face, expression and body, plus the Lobby desks, as reference sheets in `user://char_sheet/` (run it windowed, from the project folder):
 
 ```bash
-/Applications/Godot.app/Contents/MacOS/Godot --path /Users/rodri/Desktop/Games/OfficeChaos -- --chars
+/Applications/Godot.app/Contents/MacOS/Godot --path . -- --chars
 ```
 
 ## Launch
 
-1. Open Godot 4.7 → **Import** → select `OfficeChaos/project.godot` → **Run** (F5).
-2. Or from a terminal:
+You need **Godot 4.7**; the standard build is enough because the project is pure GDScript. Run the terminal commands from the project folder. They use the macOS app path: on Windows or Linux, replace `/Applications/Godot.app/Contents/MacOS/Godot` with your Godot executable.
+
+1. Get the project:
    ```bash
-   /Applications/Godot.app/Contents/MacOS/Godot --path /Users/rodri/Desktop/Games/OfficeChaos
+   git clone https://github.com/rodrigopcoelho/OfficeChaos.git && cd OfficeChaos
    ```
-3. To run the automated play-through test (87 PASS/FAIL checks covering every system, including simulated controller input), use:
+2. Open Godot 4.7 → **Import** → select `OfficeChaos/project.godot` → **Run** (F5).
+3. Or from a terminal, import the assets once (the editor does this for you when you open the project), then run the game:
    ```bash
-   /Applications/Godot.app/Contents/MacOS/Godot --headless --path /Users/rodri/Desktop/Games/OfficeChaos -- --qa
+   /Applications/Godot.app/Contents/MacOS/Godot --headless --path . --import
+   ```
+   ```bash
+   /Applications/Godot.app/Contents/MacOS/Godot --path .
+   ```
+4. To run the automated play-through test (92 PASS/FAIL checks covering every system, including simulated controller input), use:
+   ```bash
+   /Applications/Godot.app/Contents/MacOS/Godot --headless --path . -- --qa
    ```
    Add `--shots` (without `--headless`) to save screenshots to `user://qa_shots`.
-4. To run the performance benchmark (frame times, draw calls, level build times, combat and boss stress scenes, and a level-cycling memory-leak check), run it windowed:
+5. To run the performance benchmark (frame times, draw calls, level build times, combat and boss stress scenes, and a level-cycling memory-leak check), run it windowed:
    ```bash
-   /Applications/Godot.app/Contents/MacOS/Godot --path /Users/rodri/Desktop/Games/OfficeChaos -- --bench
+   /Applications/Godot.app/Contents/MacOS/Godot --path . -- --bench
    ```
    `--bench --quick` measures two scenes. Experiment flags such as `--quality=low`, `--shadow=off`, `--nooutline` or `--noactors` show what each feature costs. `--quality=` only applies to that run: your saved graphics setting is put back afterwards.
 

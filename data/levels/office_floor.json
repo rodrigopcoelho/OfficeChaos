@@ -1,0 +1,214 @@
+{
+  "id": "office_floor",
+  "name": "Floor 7",
+  "subtitle": "Open Plan - Productivity Zone",
+  "type": "field",
+  "safe": false,
+  "enemy_level": 1.0,
+  "theme": {
+    "floor_color": "#cad59c",
+    "floor_seam": "#a7b97a",
+    "floor_pattern": 0,
+    "wall_color": "#f0dcb0",
+    "wall_trim": "#d1a96f",
+    "wall_height": 2.4,
+    "ambient_color": "#8193d6",
+    "ambient_energy": 0.6,
+    "bg_color": "#1e1b33",
+    "sun_energy": 0.48,
+    "sun_color": "#fff0c8",
+    "light_color": "#fff3c0",
+    "light_energy": 0.55,
+    "light_range": 7,
+    "light_spacing": 4,
+    "flicker_chance": 0.05,
+    "fog_density": 0.0,
+    "fog_color": "#1a1520",
+    "corrupt_color": "#ff4f8b",
+    "corrupt_start": 22,
+    "corrupt_end": 75,
+    "corrupt_light_color": "#ff4f8b",
+    "screen_color": "#9ff0d8",
+    "ambient": "office",
+    "exposure": 1.0,
+    "saturation": 1.12,
+    "post": {
+      "vignette": 0.28,
+      "scanline": 0.015,
+      "glitch": 0.01,
+      "tint": "#ffffff"
+    },
+    "sign_color": "#3a3560",
+    "sign_text": "#fff6dc",
+    "props": {
+      "desk": "#f2c46b",
+      "chair": "#e86f6f",
+      "partition": "#8fc1d6",
+      "table": "#7a62c9",
+      "crt": "#efe4c9",
+      "cabinet": "#e8a0b4",
+      "printer": "#e9e4f2",
+      "plant": "#6fbf73",
+      "server": "#2f3157"
+    }
+  },
+  "map": [
+    "###E##############################################",
+    "#........#.....................#.................#",
+    "#.....G..#.....................#..ppp.........ww.#",
+    "#...........kd..kd..kd..kd..kd.#.................#",
+    "#..P........kd..kd..kd..kd..kd.#.c......ttttt....#",
+    "#.......................................ttttt....#",
+    "#...................1.................c..........#",
+    "#........#.....................#.......c.....c...#",
+    "#........#..kd..kd..kd..kd..kd.#..........3...c..#",
+    "###..#####..kd..kd..kd..kd..kd.#.fffff...........#",
+    "###..#####.....................#.................#",
+    "###..#####.................2...#########..########",
+    "###..#####.....................#########..########",
+    "###..##########...######################..########",
+    "#................................................#",
+    "#.......................4........................#",
+    "#................................................#",
+    "######...########ggRgg#ggRgg#ggRgg######...#######",
+    "#..............##.....#.....#.....#..............#",
+    "#.ww...........##.....#.....#.....#.G............#",
+    "#..........c...##.ttt.#.ttt.#.ttt.#..............#",
+    "#.......5...c..##.ttt.#.ttt.#.ttt.#...xx...xx..x.#",
+    "#..............##.....#.....#.....#.c............#",
+    "#...tttt.......##.....#.....#.....#......c.......#",
+    "#...tttt.......##.....#.....#.....#...xx...xx..x.#",
+    "#..............####################..............#",
+    "#..............########.....#######......c.......#",
+    "#.c......tttt..########.....#######...xx...xx..x.#",
+    "#........tttt..########ggRgg#######.c............#",
+    "#............................................6...#",
+    "#.....c.................7.............xx...xx..x.#",
+    "#........................................c.......#",
+    "#fff...........####################..............#",
+    "##################################################"
+  ],
+  "computers": [
+    {
+      "id": "floor7_elevator",
+      "name": "Floor 7 Elevator Terminal"
+    },
+    {
+      "id": "floor7_network_closet",
+      "name": "Network Closet Uplink"
+    }
+  ],
+  "exits": [
+    {
+      "to": "hub",
+      "name": "The Lobby"
+    }
+  ],
+  "dungeon_doors": {
+    "count": 1,
+    "dungeons": [
+      "server_room_b"
+    ]
+  },
+  "signs": [
+    "ALL MEETINGS ARE MANDATORY",
+    "REMAIN IN YOUR DESIGNATED AREA",
+    "Q4 IS ALWAYS COMING",
+    "THE DATA SEES YOU",
+    "HAVE YOU TRIED TURNING IT OFF",
+    "PLEASE DO NOT FEED THE PROCESSES"
+  ],
+  "encounters": {
+    "1": {
+      "enemies": [
+        [
+          "trojan",
+          3
+        ]
+      ],
+      "spread": 3
+    },
+    "2": {
+      "enemies": [
+        [
+          "trojan",
+          2
+        ],
+        [
+          "worm",
+          2
+        ]
+      ],
+      "spread": 3
+    },
+    "3": {
+      "enemies": [
+        [
+          "spyware",
+          2
+        ],
+        [
+          "trojan",
+          2
+        ]
+      ],
+      "spread": 3.5
+    },
+    "4": {
+      "enemies": [
+        [
+          "worm",
+          3
+        ],
+        [
+          "ransomware",
+          1
+        ]
+      ],
+      "spread": 4
+    },
+    "5": {
+      "enemies": [
+        [
+          "spyware",
+          2
+        ],
+        [
+          "trojan",
+          3
+        ]
+      ],
+      "spread": 4
+    },
+    "6": {
+      "enemies": [
+        [
+          "rootkit",
+          1
+        ],
+        [
+          "trojan",
+          2
+        ],
+        [
+          "spyware",
+          1
+        ]
+      ],
+      "spread": 3
+    },
+    "7": {
+      "enemies": [
+        [
+          "ransomware",
+          1
+        ],
+        [
+          "worm",
+          2
+        ]
+      ],
+      "spread": 3
+    }
+  }
+}

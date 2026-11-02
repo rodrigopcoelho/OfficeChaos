@@ -1,0 +1,11 @@
+# Godot 4 import cache and editor state (regenerated on open)
+.godot/
+
+# Exports / builds
+/build/
+/export/
+*.dmg
+*.zip
+
+# macOS
+.DS_Store

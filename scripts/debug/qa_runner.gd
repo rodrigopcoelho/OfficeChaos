@@ -1,0 +1,429 @@
+extends Node
+## Automated play-through used for testing: run with
+##   godot --path . -- --qa            (headless-friendly, prints PASS/FAIL)
+##   godot --path . -- --qa --shots    (also saves screenshots to user://qa_shots)
+## It drives the real game systems: character creation, hub shopping, combat,
+## loot, levelling, terminals, the dungeon, the boss, death/respawn and saving.
+
+const SLOT := 2
+
+var failures: Array[String] = []
+var passes := 0
+var shots := false
+var shot_i := 0
+
+
+func _ready() -> void:
+	process_mode = Node.PROCESS_MODE_ALWAYS
+	shots = "--shots" in OS.get_cmdline_user_args()
+	_run.call_deferred()
+
+
+func check(cond: bool, what: String) -> void:
+	if cond:
+		passes += 1
+		print("[QA] PASS  ", what)
+	else:
+		failures.append(what)
+		print("[QA] FAIL  ", what)
+
+
+func wait(t: float) -> void:
+	await get_tree().create_timer(t, true, false, true).timeout
+
+
+func wait_until(cond: Callable, timeout: float) -> void:
+	var t0 := Time.get_ticks_msec()
+	while not cond.call() and Time.get_ticks_msec() - t0 < timeout * 1000.0:
+		await get_tree().process_frame
+
+
+func frames(n: int) -> void:
+	for i in n:
+		await get_tree().process_frame
+
+
+func shot(name: String) -> void:
+	if not shots:
+		return
+	await RenderingServer.frame_post_draw
+	var img := get_viewport().get_texture().get_image()
+	DirAccess.make_dir_recursive_absolute("user://qa_shots")
+	var path := "user://qa_shots/%02d_%s.png" % [shot_i, name]
+	shot_i += 1
+	img.save_png(path)
+	print("[QA] screenshot ", ProjectSettings.globalize_path(path))
+
+
+func _run() -> void:
+	var main = GameState.main
+	print("[QA] ===== OFFICE CHAOS automated play-through =====")
+	# --- data
+	check(DB.items.size() >= 13, "content: >= 10 weapons + armor + accessories loaded (%d items)" % DB.items.size())
+	var weapons := 0
+	var armors := 0
+	for id in DB.items:
+		if DB.items[id].slot == "weapon": weapons += 1
+		if DB.items[id].slot == "armor": armors += 1
+	check(weapons >= 10, "content: %d weapons" % weapons)
+	check(armors >= 3, "content: %d armor pieces" % armors)
+	check(DB.enchantments.size() >= 5, "content: %d enchantments" % DB.enchantments.size())
+	check(DB.enemies.size() >= 4, "content: %d enemy types" % DB.enemies.size())
+	# --- main menu
+	main.go_to_menu()
+	await wait_until(func() -> bool: return GameState.world != null and GameState.world.warmed, 10.0)
+	await wait(0.6)
+	await shot("main_menu")
+	check(GameState.world != null and GameState.world.menu_mode, "main menu shows the live lobby")
+	ui_click_new_hire()
+	await wait(0.6)
+	await shot("char_create")
+	# --- character creation
+	GameState.delete_slot(SLOT)
+	GameState.new_profile("QA Tester", {"body": 1, "palette": 4, "hair": 2}, SLOT)
+	check(GameState.has_profile(), "character created")
+	check(not GameState.equipped("weapon").is_empty(), "starting weapon equipped")
+	check(not GameState.equipped("armor").is_empty(), "starting armor equipped")
+	await main.start_game()
+	await wait(0.8)
+	check(GameState.world.level_id == "hub", "game starts in the hub")
+	check(GameState.player != null, "player spawned")
+	await shot("hub")
+	# --- character look and expressions
+	var vis: CharacterVisual = GameState.player.visual
+	check(vis.face_mesh != null and vis.torso.material_override is ShaderMaterial, "employee has a painted face and suit")
+	vis.express("hurt", 0.3)
+	await wait(0.05)
+	check(vis.mood == "hurt" and GameState.ui.hud.portrait.figure.mood == "hurt", "face reacts and the HUD portrait mirrors it")
+	await wait(0.5)
+	check(vis.mood == "neutral" and GameState.ui.hud.portrait.figure.mood == "neutral", "expression returns to neutral")
+	# --- stations
+	var stations := get_tree().get_nodes_in_group("interactables").filter(func(n): return n is Station)
+	check(stations.size() == 4, "hub has 4 service stations (%d)" % stations.size())
+	for t in ["shop", "forge", "enchant", "growth", "inventory", "profile", "network"]:
+		GameState.ui.open_app(t)
+		await frames(3)
+		check(GameState.ui.app.visible and GameState.ui.app.tab == t, "app tab '%s' opens" % t)
+		if t == "inventory" or t == "shop":
+			await wait(0.4)
+			await shot("app_" + t)
+	GameState.ui.app.close_window()
+	check(not get_tree().paused, "closing the app unpauses")
+	# --- shop
+	GameState.profile.gold = 2000
+	var stock: Array = GameState.profile.shop_stock
+	check(stock.size() > 0, "shop has stock (%d)" % stock.size())
+	var bought_uid := int(stock[0].uid)
+	var err := GameState.buy_shop_item(bought_uid)
+	check(err == "" and not GameState.find_item(bought_uid).is_empty(), "buy item from shop")
+	# --- blacksmith
+	var w := GameState.equipped("weapon")
+	var dmg0 := float(GameState.stats.weapon.damage)
+	err = GameState.upgrade_item(int(w.uid))
+	check(err == "" and float(GameState.stats.weapon.damage) > dmg0, "blacksmith upgrade raises damage (%.1f -> %.1f)" % [dmg0, float(GameState.stats.weapon.damage)])
+	# --- enchanting
+	GameState.profile.points = 10
+	var slot0: Dictionary = w.enchants[0]
+	var opt := str(slot0.options[0])
+	err = GameState.choose_enchant(int(w.uid), 0, opt)
+	check(err == "", "choose enchantment " + opt)
+	err = GameState.upgrade_enchant(int(w.uid), 0)
+	check(err == "" and int(w.enchants[0].level) == 2, "upgrade enchantment to II")
+	check(GameState.player.active_enchants.size() >= 1, "player picks up active enchantments")
+	# --- growth
+	var hp0 := float(GameState.stats.max_hp)
+	err = GameState.buy_stat_upgrade("vitality")
+	check(err == "" and float(GameState.stats.max_hp) > hp0, "performance upgrade raises max HP")
+	# --- go to the office through the elevator
+	await main.travel("office_floor", {"type": "start"})
+	await wait(0.8)
+	check(GameState.world.level_id == "office_floor", "elevator to office floor")
+	var enemies := get_tree().get_nodes_in_group("enemies")
+	check(enemies.size() >= 15, "office has encounters (%d enemies)" % enemies.size())
+	GameState.player.global_position = GameState.world.computers[0].global_position + Vector3(0, 0, 2.5)
+	await wait(0.3)
+	check(GameState.is_computer_unlocked("floor7_elevator"), "golden computer unlocks when the player walks up")
+	var reds := get_tree().get_nodes_in_group("interactables").filter(func(n): return n is WallDoor and n.is_red)
+	check(reds.size() == 1, "exactly one red meeting room door")
+	await shot("office")
+	# --- combat: fight the first encounter for real
+	var p: Player = GameState.player
+	var target: Enemy = null
+	for e in enemies:
+		if e.enemy_id == "trojan":
+			target = e
+			break
+	var xp0 := int(GameState.profile.xp) + int(GameState.profile.level) * 100000
+	var gold0 := int(GameState.profile.gold)
+	p.global_position = target.global_position + Vector3(1.5, 0, 0)
+	await frames(2)
+	var swings := 0
+	while is_instance_valid(target) and not target.dead and swings < 40:
+		p.aim_point = target.global_position
+		p.facing = (target.global_position - p.global_position).normalized()
+		p.attack_cd = 0.0
+		p.attack()
+		swings += 1
+		p.hp = p.max_hp
+		await wait(0.12)
+	check(not is_instance_valid(target) or target.dead, "player melee kills a Process Worker (%d swings)" % swings)
+	await shot("combat")
+	await wait(1.6)
+	var xp1 := int(GameState.profile.xp) + int(GameState.profile.level) * 100000
+	check(xp1 > xp0, "DATA absorbed after kill")
+	check(int(GameState.profile.gold) > gold0, "GOLD collected after kill")
+	# --- enemy AI hurts the player
+	var hp_before := p.hp
+	var attacker: Enemy = null
+	for e in get_tree().get_nodes_in_group("enemies"):
+		if not e.dead:
+			attacker = e
+			break
+	p.global_position = attacker.global_position + Vector3(1.2, 0, 0)
+	p.input_enabled = false
+	var t0 := 0.0
+	while p.hp >= hp_before and t0 < 6.0:
+		await wait(0.1)
+		t0 += 0.1
+	check(p.hp < hp_before, "enemy AI detects, approaches and damages player")
+	p.input_enabled = true
+	p.hp = p.max_hp
+	# --- loot drop
+	var drop := Loot.make_instance("binary_saber")
+	GameState.world.drop_rewards(p.global_position, 0.0, 0, "")
+	var pk := Pickup.new().setup("item", 0.0, drop)
+	GameState.world.pickups_root.add_child(pk)
+	pk.global_position = p.global_position
+	await wait(1.2)
+	check(not GameState.find_item(int(drop.uid)).is_empty(), "walking over dropped equipment picks it up")
+	check(not GameState.equip(int(drop.uid)), "level requirement blocks equipping a Lv3 item at Lv%d" % int(GameState.profile.level))
+	GameState.add_xp(400)
+	check(int(GameState.profile.level) >= 3, "DATA levels up (now Lv%d)" % int(GameState.profile.level))
+	check(GameState.equip(int(drop.uid)), "equip the dropped Binary Saber")
+	await _controller_tests(p)
+	# --- special abilities
+	for wid in ["intern_shortsword", "budget_cut_axe", "paper_cut_dagger", "disciplinary_gavel", "laser_pointer_pike"]:
+		var inst := Loot.make_instance(wid)
+		GameState.add_item(inst, false)
+		GameState.equip(int(inst.uid))
+		p.special_cd = 0.0
+		p.special()
+		await wait(0.4)
+		check(p.special_cd > 0.0, "special ability works with " + wid)
+	GameState.equip(int(drop.uid))
+	# --- network closet terminal
+	var gc2 = null
+	for g in GameState.world.computers:
+		if g.computer_id == "floor7_network_closet":
+			gc2 = g
+	p.global_position = gc2.global_position + Vector3(0, 0, 2)
+	await wait(0.4)
+	check(GameState.is_computer_unlocked("floor7_network_closet"), "second golden computer unlocks when reached")
+	# --- teleport via network
+	await main.travel("hub", {"type": "computer", "id": "lobby_terminal"})
+	await wait(0.5)
+	check(GameState.world.level_id == "hub", "teleport to lobby terminal")
+	await main.travel("office_floor", {"type": "computer", "id": "floor7_network_closet"})
+	await wait(0.5)
+	p = GameState.player
+	check(p.global_position.distance_to(GameState.world.computers[1].global_position) < 5.0, "teleport lands at the chosen terminal")
+	# --- red door -> dungeon
+	reds = get_tree().get_nodes_in_group("interactables").filter(func(n): return n is WallDoor and n.is_red)
+	reds[0].interact(p)
+	await frames(2)
+	check(GameState.ui.dialog_layer.get_child_count() > 0, "red door shows the meeting invite")
+	await shot("invite")
+	GameState.ui.close_dialog()
+	await main.travel("dungeon_server_room", {"type": "start"})
+	await wait(0.8)
+	check(GameState.world.level_id == "dungeon_server_room", "entered dungeon")
+	check(GameState.world.boss != null, "dungeon has a boss")
+	check(get_tree().get_nodes_in_group("enemies").size() >= 15, "dungeon has encounters")
+	await shot("dungeon")
+	# --- boss fight: walk in, get it active, fight via real hits
+	p = GameState.player
+	var boss: Boss = GameState.world.boss
+	for e in get_tree().get_nodes_in_group("enemies"):
+		if e != boss:
+			e.die(false)
+	await wait(0.3)
+	p.global_position = boss.global_position + Vector3(0, 0, 8)
+	await wait(1.2)
+	check(boss.active, "boss activates when the player approaches")
+	await shot("boss")
+	var saw_phase2 := false
+	var hits := 0
+	var timeout := 0.0
+	GameState.profile.level = 20
+	GameState.recompute()
+	while not boss.dead and timeout < 120.0:
+		p.hp = p.max_hp
+		p.global_position = boss.global_position + (p.global_position - boss.global_position).normalized() * 2.5
+		p.aim_point = boss.global_position
+		p.facing = (boss.global_position - p.global_position).normalized()
+		p.attack_cd = 0.0
+		p.attack()
+		hits += 1
+		if boss.phase >= 1:
+			if not saw_phase2:
+				await shot("boss_phase2")
+			saw_phase2 = true
+		await wait(0.15)
+		timeout += 0.15
+	check(saw_phase2, "boss entered phase 2")
+	check(boss.dead, "boss defeated through combat (%d swings)" % hits)
+	await wait(3.5)
+	await shot("boss_dead")
+	check(GameState.clearance() >= 1, "boss kill raises Security Clearance")
+	var chest = GameState.world.chests[0]
+	check(not chest.locked, "reward chest unlocked")
+	var inv0 := GameState.inventory().size()
+	p.global_position = chest.global_position + Vector3(0, 0, 2.0)
+	chest.interact(p)
+	await wait(2.0)
+	check(GameState.inventory().size() > inv0, "chest + boss loot collected (%d -> %d items)" % [inv0, GameState.inventory().size()])
+	check(GameState.world.exits[0].enabled, "exit unlocked after the boss")
+	# --- death and respawn
+	var gold_before := int(GameState.profile.gold)
+	var items_before := GameState.inventory().size()
+	var lvl_before := int(GameState.profile.level)
+	p.invuln = 0.0
+	p.take_damage(999999.0)
+	check(p.dead, "player can die")
+	check(p.visual.mood == "ko", "knocked-out face on death")
+	await wait(1.8)
+	check(GameState.ui.death_screen.visible, "death screen shown")
+	await shot("death")
+	GameState.ui.respawn()
+	await wait(1.4)
+	check(GameState.world.level_id == "hub", "respawn in hub")
+	check(int(GameState.profile.gold) == gold_before and GameState.inventory().size() == items_before and int(GameState.profile.level) == lvl_before, "nothing lost on death")
+	check(GameState.player.hp == GameState.player.max_hp, "respawn at full health")
+	# --- save / load
+	var snapshot := JSON.stringify(GameState.profile)
+	check(GameState.save_game(), "save game")
+	GameState.profile = {}
+	check(GameState.load_game(SLOT), "load game")
+	check(int(GameState.profile.gold) == gold_before and GameState.inventory().size() == items_before, "loaded profile matches")
+	check(GameState.is_computer_unlocked("floor7_network_closet") and GameState.clearance() >= 1, "terminals & clearance persisted")
+	check(not GameState.equipped("weapon").is_empty() and int(GameState.equipped("weapon").enchants.size()) >= 0, "equipment persisted")
+	var _unused := snapshot
+	# --- save slots show character portraits
+	await main.go_to_menu()
+	var menu: MainMenu = GameState.ui.menu_layer.get_child(GameState.ui.menu_layer.get_child_count() - 1)
+	menu.show_load()
+	await wait(0.4)
+	var used := 0
+	for i in GameState.SLOT_COUNT:
+		if not GameState.slot_summary(i).is_empty():
+			used += 1
+	check(menu.find_children("*", "AvatarPortrait", true, false).size() == used, "save slots show %d character portraits" % used)
+	await shot("load_menu")
+	GameState.delete_slot(SLOT)
+	print("[QA] ===== %d passed, %d failed =====" % [passes, failures.size()])
+	for f in failures:
+		print("[QA]   failed: ", f)
+	get_tree().quit(1 if failures.size() > 0 else 0)
+
+
+func pad_button(button: int, pressed: bool) -> void:
+	var e := InputEventJoypadButton.new()
+	e.device = 0
+	e.button_index = button as JoyButton
+	e.pressed = pressed
+	Input.parse_input_event(e)
+
+
+func pad_tap(button: int) -> void:
+	pad_button(button, true)
+	await frames(2)
+	pad_button(button, false)
+	await frames(2)
+
+
+func pad_axis(axis: int, value: float) -> void:
+	var e := InputEventJoypadMotion.new()
+	e.device = 0
+	e.axis = axis as JoyAxis
+	e.axis_value = value
+	Input.parse_input_event(e)
+
+
+func _controller_tests(p: Player) -> void:
+	## Drives the game with simulated controller input (Minecraft Dungeons II layout).
+	var ui := GameState.ui
+	p.attack_cd = 0.0
+	pad_button(JOY_BUTTON_X, true)
+	await frames(3)
+	check(Controls.gamepad, "controller: pressing a pad button switches to controller mode")
+	check(p.attack_cd > 0.0, "controller: X attacks")
+	pad_button(JOY_BUTTON_X, false)
+	await wait(0.4)
+	p.global_position = GameState.world.player_start
+	pad_axis(JOY_AXIS_LEFT_X, 1.0)
+	await wait(0.25)
+	check(p.velocity.x > 2.0, "controller: left stick moves (vx=%.1f)" % p.velocity.x)
+	pad_axis(JOY_AXIS_LEFT_X, 0.0)
+	await wait(0.3)
+	p.dodge_cd = 0.0
+	pad_axis(JOY_AXIS_RIGHT_X, 0.0)
+	pad_axis(JOY_AXIS_RIGHT_Y, 0.0)
+	await frames(2)
+	pad_axis(JOY_AXIS_RIGHT_Y, 1.0)
+	await frames(3)
+	check(p.dodge_t > 0.0 or p.dodge_cd > 0.0, "controller: right-stick flick dodges")
+	pad_axis(JOY_AXIS_RIGHT_Y, 0.0)
+	await wait(0.9)
+	p.dodge_cd = 0.0
+	await pad_tap(JOY_BUTTON_LEFT_SHOULDER)
+	check(p.dodge_cd > 0.0, "controller: LB dodges")
+	await wait(0.5)  # specials are blocked mid-roll
+	p.special_cd = 0.0
+	await pad_tap(JOY_BUTTON_Y)
+	check(p.special_cd > 0.0, "controller: Y uses the special ability")
+	await pad_tap(JOY_BUTTON_DPAD_UP)
+	check(ui.app.visible and ui.app.tab == "inventory", "controller: D-pad Up opens the inventory")
+	await frames(3)
+	var owner := ui.get_viewport().gui_get_focus_owner()
+	check(owner != null and ui.app.is_ancestor_of(owner), "controller: menu has a focused control")
+	await pad_tap(JOY_BUTTON_DPAD_RIGHT)
+	await wait(0.3)
+	await shot("controller_focus")
+	await pad_tap(JOY_BUTTON_DPAD_UP)
+	check(ui.app.visible, "controller: D-pad navigates inside menus instead of closing them")
+	await pad_tap(JOY_BUTTON_RIGHT_SHOULDER)
+	check(ui.app.tab == "network", "controller: RB switches to the next tab (%s)" % ui.app.tab)
+	await pad_tap(JOY_BUTTON_LEFT_SHOULDER)
+	check(ui.app.tab == "inventory", "controller: LB switches back")
+	await pad_tap(JOY_BUTTON_B)
+	check(not ui.app.visible and not get_tree().paused, "controller: B closes the menu and resumes")
+	await pad_tap(JOY_BUTTON_START)
+	check(ui.pause_menu.visible, "controller: Menu opens the pause menu")
+	await frames(3)
+	owner = ui.get_viewport().gui_get_focus_owner()
+	check(owner != null and ui.pause_menu.is_ancestor_of(owner), "controller: pause menu focuses a button")
+	await pad_tap(JOY_BUTTON_B)
+	check(not ui.pause_menu.visible, "controller: B resumes from the pause menu")
+	await pad_tap(JOY_BUTTON_BACK)
+	check(ui.app.visible and ui.app.tab == "network", "controller: View opens the network map")
+	await pad_tap(JOY_BUTTON_B)
+	check(Controls.pad_text("special") == "Y" and Controls.prompt("interact") == "A", "controller: HUD prompts show pad buttons")
+	Settings.rebind_pad("special", _pad_event(JOY_BUTTON_B))
+	check(Controls.pad_text("special") == "B" and InputMap.action_has_event("special", _pad_event(JOY_BUTTON_B)), "controller: special can be rebound to B")
+	Settings.reset_bindings()
+	Settings.apply_bindings()
+	var mm := InputEventMouseMotion.new()
+	mm.relative = Vector2(20, 0)
+	Input.parse_input_event(mm)
+	await frames(2)
+	check(not Controls.gamepad and Controls.prompt("interact") == "E", "controller: moving the mouse switches back to keyboard prompts")
+
+
+func _pad_event(button: int) -> InputEventJoypadButton:
+	var e := InputEventJoypadButton.new()
+	e.button_index = button as JoyButton
+	return e
+
+
+func ui_click_new_hire() -> void:
+	GameState.ui.show_char_create()

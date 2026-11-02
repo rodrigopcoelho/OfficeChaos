@@ -1,0 +1,169 @@
+{
+  "_doc": "WEAPONS. damage=per hit, attack_speed=swings/sec, range=meters, arc=degrees of the swing cone, crit_mult=critical multiplier, stun_chance=0..1, special=ability id from abilities.json (Q key), swing=horizontal|chop|thrust, effects=built-in enchantments [{enchant, level}], enchant_slots overrides the rarity default, droppable=false keeps it out of loot. visual.parts are built around the grip at the origin and point along -Z (see README).",
+  "items": [
+    {
+      "id": "intern_shortsword", "slot": "weapon", "class": "sword", "name": "Intern's Shortsword", "rarity": "common", "level_req": 1, "price": 40,
+      "description": "Standard-issue onboarding blade. The plastic is still on the handle.",
+      "damage": 10, "attack_speed": 1.8, "range": 2.3, "arc": 110, "crit_chance": 0.05, "crit_mult": 1.75, "knockback": 3.5, "stun_chance": 0.0,
+      "special": "spin", "swing": "horizontal", "effects": [],
+      "visual": {"parts": [
+        {"shape": "box", "size": [0.07, 0.07, 0.26], "pos": [0, 0, 0.08], "color": "#5a3b26"},
+        {"shape": "box", "size": [0.34, 0.07, 0.07], "pos": [0, 0, -0.07], "color": "#8a8f99"},
+        {"shape": "box", "size": [0.11, 0.03, 0.78], "pos": [0, 0, -0.48], "color": "#c8ccd4"}
+      ]}
+    },
+    {
+      "id": "compliance_longsword", "slot": "weapon", "class": "sword", "name": "Compliance Longsword", "rarity": "common", "level_req": 2, "price": 90,
+      "description": "Every swing is logged, audited and filed in triplicate.",
+      "damage": 14, "attack_speed": 1.6, "range": 2.5, "arc": 115, "crit_chance": 0.06, "crit_mult": 1.8, "knockback": 4.0, "stun_chance": 0.0,
+      "special": "spin", "swing": "horizontal", "effects": [],
+      "visual": {"parts": [
+        {"shape": "box", "size": [0.07, 0.07, 0.3], "pos": [0, 0, 0.1], "color": "#2e2e3a"},
+        {"shape": "box", "size": [0.42, 0.08, 0.08], "pos": [0, 0, -0.08], "color": "#b39b5a"},
+        {"shape": "box", "size": [0.13, 0.035, 1.0], "pos": [0, 0, -0.6], "color": "#d8dce4"},
+        {"shape": "box", "size": [0.04, 0.04, 0.8], "pos": [0, 0.02, -0.55], "color": "#3355aa"}
+      ]}
+    },
+    {
+      "id": "binary_saber", "slot": "weapon", "class": "sword", "name": "Binary Saber", "rarity": "special", "level_req": 3, "price": 220,
+      "description": "Its blade is a 1 and its sheath is a 0. Leaves corrupted code in every wound.",
+      "damage": 17, "attack_speed": 1.7, "range": 2.5, "arc": 120, "crit_chance": 0.07, "crit_mult": 1.8, "knockback": 3.5, "stun_chance": 0.0,
+      "special": "spin", "swing": "horizontal", "effects": [{"enchant": "corruption", "level": 1}],
+      "visual": {"parts": [
+        {"shape": "box", "size": [0.08, 0.08, 0.3], "pos": [0, 0, 0.1], "color": "#1b1b22"},
+        {"shape": "box", "size": [0.36, 0.1, 0.1], "pos": [0, 0, -0.08], "color": "#3a3a46"},
+        {"shape": "box", "size": [0.1, 0.06, 1.0], "pos": [0, 0, -0.6], "color": "#39ff88", "emit": 2.5}
+      ]}
+    },
+    {
+      "id": "excalibyte", "slot": "weapon", "class": "sword", "name": "EXCALIBYTE", "rarity": "unique", "level_req": 5, "price": 650,
+      "description": "Pulled from a server rack by the only employee who read the terms and conditions.",
+      "damage": 22, "attack_speed": 1.6, "range": 2.7, "arc": 125, "crit_chance": 0.1, "crit_mult": 2.0, "knockback": 4.5, "stun_chance": 0.0,
+      "special": "spin", "swing": "horizontal", "effects": [{"enchant": "data_wave", "level": 1}, {"enchant": "data_leech", "level": 1}],
+      "visual": {"parts": [
+        {"shape": "box", "size": [0.08, 0.08, 0.3], "pos": [0, 0, 0.1], "color": "#3b2a6a"},
+        {"shape": "sphere", "size": [0.14, 0.14, 0.14], "pos": [0, 0, 0.27], "color": "#ffd24a", "emit": 1.5},
+        {"shape": "box", "size": [0.5, 0.1, 0.1], "pos": [0, 0, -0.08], "color": "#ffc23a", "emit": 0.6},
+        {"shape": "box", "size": [0.16, 0.05, 1.15], "pos": [0, 0, -0.7], "color": "#7ff7ff", "emit": 3.0},
+        {"shape": "box", "size": [0.05, 0.07, 1.0], "pos": [0, 0, -0.66], "color": "#ffffff", "emit": 2.0}
+      ]}
+    },
+    {
+      "id": "budget_cut_axe", "slot": "weapon", "class": "axe", "name": "Budget Cut Axe", "rarity": "common", "level_req": 1, "price": 70,
+      "description": "Slow, heavy and indiscriminate. Hits everyone in the department.",
+      "damage": 18, "attack_speed": 0.95, "range": 2.6, "arc": 170, "crit_chance": 0.05, "crit_mult": 1.8, "knockback": 6.0, "stun_chance": 0.05,
+      "special": "cleave", "swing": "horizontal", "effects": [],
+      "visual": {"parts": [
+        {"shape": "box", "size": [0.08, 0.08, 1.0], "pos": [0, 0, -0.3], "color": "#6b4a2e"},
+        {"shape": "box", "size": [0.5, 0.06, 0.34], "pos": [0.22, 0, -0.68], "color": "#9aa0a8"},
+        {"shape": "box", "size": [0.08, 0.07, 0.36], "pos": [0.46, 0, -0.68], "color": "#e0e4ea"}
+      ]}
+    },
+    {
+      "id": "the_downsizer", "slot": "weapon", "class": "axe", "name": "The Downsizer", "rarity": "special", "level_req": 4, "price": 320,
+      "description": "Specialises in making positions redundant. Especially the weak ones.",
+      "damage": 26, "attack_speed": 0.9, "range": 2.8, "arc": 175, "crit_chance": 0.06, "crit_mult": 1.9, "knockback": 7.0, "stun_chance": 0.08,
+      "special": "cleave", "swing": "horizontal", "effects": [{"enchant": "execution", "level": 1}],
+      "visual": {"parts": [
+        {"shape": "box", "size": [0.09, 0.09, 1.1], "pos": [0, 0, -0.35], "color": "#2a2a30"},
+        {"shape": "box", "size": [0.6, 0.07, 0.42], "pos": [0.27, 0, -0.75], "color": "#7a1e22"},
+        {"shape": "box", "size": [0.6, 0.07, 0.42], "pos": [-0.27, 0, -0.75], "color": "#7a1e22"},
+        {"shape": "box", "size": [0.08, 0.08, 0.44], "pos": [0.56, 0, -0.75], "color": "#ff4848", "emit": 1.8},
+        {"shape": "box", "size": [0.08, 0.08, 0.44], "pos": [-0.56, 0, -0.75], "color": "#ff4848", "emit": 1.8}
+      ]}
+    },
+    {
+      "id": "paper_cut_dagger", "slot": "weapon", "class": "dagger", "name": "Paper Cut Dagger", "rarity": "common", "level_req": 1, "price": 55,
+      "description": "Barely visible. Unbearably painful.",
+      "damage": 6, "attack_speed": 3.2, "range": 1.9, "arc": 80, "crit_chance": 0.18, "crit_mult": 2.2, "knockback": 1.5, "stun_chance": 0.0,
+      "special": "blink", "swing": "horizontal", "effects": [],
+      "visual": {"parts": [
+        {"shape": "box", "size": [0.06, 0.06, 0.18], "pos": [0, 0, 0.05], "color": "#e8e4d8"},
+        {"shape": "box", "size": [0.12, 0.012, 0.42], "pos": [0, 0, -0.24], "color": "#fbfaf4"}
+      ]}
+    },
+    {
+      "id": "keylogger_kris", "slot": "weapon", "class": "dagger", "name": "Keylogger Kris", "rarity": "special", "level_req": 3, "price": 260,
+      "description": "Knows where you'll be before you do.",
+      "damage": 9, "attack_speed": 3.0, "range": 1.9, "arc": 85, "crit_chance": 0.22, "crit_mult": 2.4, "knockback": 1.5, "stun_chance": 0.0,
+      "special": "blink", "swing": "horizontal", "effects": [{"enchant": "glitch_strike", "level": 1}],
+      "visual": {"parts": [
+        {"shape": "box", "size": [0.07, 0.07, 0.2], "pos": [0, 0, 0.06], "color": "#202024"},
+        {"shape": "box", "size": [0.2, 0.06, 0.06], "pos": [0, 0, -0.05], "color": "#39ff88", "emit": 2.0},
+        {"shape": "box", "size": [0.1, 0.03, 0.5], "pos": [0.02, 0, -0.32], "rot": [0, 6, 0], "color": "#39ff88", "emit": 2.2}
+      ]}
+    },
+    {
+      "id": "disciplinary_gavel", "slot": "weapon", "class": "hammer", "name": "Disciplinary Gavel", "rarity": "common", "level_req": 2, "price": 110,
+      "description": "Order! ORDER! Stuns the unruly.",
+      "damage": 20, "attack_speed": 0.85, "range": 2.4, "arc": 140, "crit_chance": 0.04, "crit_mult": 1.8, "knockback": 7.0, "stun_chance": 0.3,
+      "special": "quake", "swing": "chop", "effects": [],
+      "visual": {"parts": [
+        {"shape": "box", "size": [0.08, 0.08, 0.95], "pos": [0, 0, -0.3], "color": "#5a3b26"},
+        {"shape": "cyl", "size": [0.36, 0.55, 0.36], "pos": [0, 0, -0.8], "rot": [0, 0, 90], "color": "#7a5236"},
+        {"shape": "cyl", "size": [0.38, 0.06, 0.38], "pos": [0.25, 0, -0.8], "rot": [0, 0, 90], "color": "#c9a24a"},
+        {"shape": "cyl", "size": [0.38, 0.06, 0.38], "pos": [-0.25, 0, -0.8], "rot": [0, 0, 90], "color": "#c9a24a"}
+      ]}
+    },
+    {
+      "id": "ctrl_alt_maul", "slot": "weapon", "class": "hammer", "name": "Ctrl-Alt-Maul", "rarity": "unique", "level_req": 6, "price": 800,
+      "description": "Forces a hard restart on anything it touches. Lightning optional, but included.",
+      "damage": 34, "attack_speed": 0.8, "range": 2.7, "arc": 150, "crit_chance": 0.06, "crit_mult": 2.0, "knockback": 8.0, "stun_chance": 0.45,
+      "special": "quake", "swing": "chop", "effects": [{"enchant": "chain_reaction", "level": 2}, {"enchant": "hard_reset", "level": 1}],
+      "visual": {"parts": [
+        {"shape": "box", "size": [0.09, 0.09, 1.05], "pos": [0, 0, -0.35], "color": "#222228"},
+        {"shape": "box", "size": [0.7, 0.32, 0.4], "pos": [0, 0, -0.9], "color": "#d6ccae"},
+        {"shape": "box", "size": [0.2, 0.06, 0.14], "pos": [-0.2, 0.18, -0.9], "color": "#6fd8ff", "emit": 2.5},
+        {"shape": "box", "size": [0.2, 0.06, 0.14], "pos": [0.0, 0.18, -0.9], "color": "#6fd8ff", "emit": 2.5},
+        {"shape": "box", "size": [0.2, 0.06, 0.14], "pos": [0.2, 0.18, -0.9], "color": "#ff4040", "emit": 2.5}
+      ]}
+    },
+    {
+      "id": "laser_pointer_pike", "slot": "weapon", "class": "spear", "name": "Laser Pointer Pike", "rarity": "common", "level_req": 2, "price": 85,
+      "description": "For presentations that need to reach the back of the room.",
+      "damage": 13, "attack_speed": 1.4, "range": 3.6, "arc": 45, "crit_chance": 0.08, "crit_mult": 1.9, "knockback": 3.0, "stun_chance": 0.0,
+      "special": "lunge", "swing": "thrust", "effects": [],
+      "visual": {"parts": [
+        {"shape": "cyl", "size": [0.07, 1.8, 0.07], "pos": [0, 0, -0.55], "rot": [-90, 0, 0], "color": "#3a3a44"},
+        {"shape": "cone", "size": [0.16, 0.35, 0.16], "pos": [0, 0, -1.6], "rot": [-90, 0, 0], "color": "#c8ccd4"},
+        {"shape": "sphere", "size": [0.08, 0.08, 0.08], "pos": [0, 0, -1.8], "color": "#ff2020", "emit": 4.0}
+      ]}
+    },
+    {
+      "id": "deadline_pike", "slot": "weapon", "class": "spear", "name": "Deadline Pike", "rarity": "special", "level_req": 4, "price": 300,
+      "description": "It was due yesterday. Critical hits make it due even sooner.",
+      "damage": 18, "attack_speed": 1.4, "range": 3.9, "arc": 50, "crit_chance": 0.12, "crit_mult": 2.0, "knockback": 3.5, "stun_chance": 0.0,
+      "special": "lunge", "swing": "thrust", "effects": [{"enchant": "overload", "level": 1}],
+      "visual": {"parts": [
+        {"shape": "cyl", "size": [0.08, 2.0, 0.08], "pos": [0, 0, -0.6], "rot": [-90, 0, 0], "color": "#2b2b33"},
+        {"shape": "box", "size": [0.4, 0.05, 0.1], "pos": [0, 0, -1.45], "color": "#ff7a1a", "emit": 1.6},
+        {"shape": "cone", "size": [0.2, 0.45, 0.2], "pos": [0, 0, -1.8], "rot": [-90, 0, 0], "color": "#ff9a3a", "emit": 1.2}
+      ]}
+    },
+    {
+      "id": "overtime_claymore", "slot": "weapon", "class": "greatsword", "name": "Overtime Claymore", "rarity": "special", "level_req": 4, "price": 360,
+      "description": "Heavy enough to keep you at the office until midnight. Enemies burst like overdue tickets.",
+      "damage": 30, "attack_speed": 0.8, "range": 3.0, "arc": 160, "crit_chance": 0.05, "crit_mult": 1.9, "knockback": 7.0, "stun_chance": 0.1,
+      "special": "spin", "swing": "chop", "effects": [{"enchant": "data_burst", "level": 1}],
+      "visual": {"parts": [
+        {"shape": "box", "size": [0.09, 0.09, 0.45], "pos": [0, 0, 0.15], "color": "#2c2018"},
+        {"shape": "box", "size": [0.6, 0.1, 0.1], "pos": [0, 0, -0.1], "color": "#6c6f78"},
+        {"shape": "box", "size": [0.2, 0.05, 1.5], "pos": [0, 0, -0.9], "color": "#c4c8d0"},
+        {"shape": "box", "size": [0.06, 0.06, 1.3], "pos": [0, 0.03, -0.85], "color": "#00e5ff", "emit": 1.8}
+      ]}
+    },
+    {
+      "id": "golden_handshake", "slot": "weapon", "class": "greatsword", "name": "The Golden Handshake", "rarity": "unique", "level_req": 6, "price": 900,
+      "description": "Awarded only to those who survive the Regional Manager. Every kill pays out.",
+      "damage": 38, "attack_speed": 0.85, "range": 3.1, "arc": 165, "crit_chance": 0.08, "crit_mult": 2.1, "knockback": 7.5, "stun_chance": 0.1,
+      "special": "spin", "swing": "chop", "effects": [{"enchant": "golden_parachute", "level": 2}, {"enchant": "overload", "level": 2}],
+      "droppable_from": ["boss"],
+      "visual": {"parts": [
+        {"shape": "box", "size": [0.1, 0.1, 0.45], "pos": [0, 0, 0.15], "color": "#3a2a10"},
+        {"shape": "box", "size": [0.7, 0.12, 0.12], "pos": [0, 0, -0.1], "color": "#ffcc33", "emit": 0.8},
+        {"shape": "box", "size": [0.24, 0.06, 1.6], "pos": [0, 0, -0.95], "color": "#ffd75e", "emit": 1.6},
+        {"shape": "box", "size": [0.06, 0.08, 1.4], "pos": [0, 0, -0.9], "color": "#ffffff", "emit": 2.0}
+      ]}
+    }
+  ]
+}

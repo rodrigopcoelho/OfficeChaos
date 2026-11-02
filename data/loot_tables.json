@@ -1,0 +1,10 @@
+{
+  "_doc": "LOOT TABLES. drop_chance = chance per roll to drop an item (luck adds to it). rolls = attempts. rarity_weights pick the rarity, then a random droppable item of that rarity whose level_req <= player level + level_slack is chosen. guaranteed = item ids always dropped (once per table roll).",
+  "tables": {
+    "basic": {"drop_chance": 0.09, "rolls": 1, "level_slack": 2, "rarity_weights": {"common": 80, "special": 18, "unique": 2}},
+    "tough": {"drop_chance": 0.22, "rolls": 1, "level_slack": 2, "rarity_weights": {"common": 65, "special": 30, "unique": 5}},
+    "elite": {"drop_chance": 0.75, "rolls": 1, "level_slack": 3, "rarity_weights": {"common": 35, "special": 52, "unique": 13}},
+    "chest": {"drop_chance": 1.0, "rolls": 2, "level_slack": 3, "rarity_weights": {"common": 25, "special": 55, "unique": 20}},
+    "boss": {"drop_chance": 1.0, "rolls": 2, "level_slack": 4, "rarity_weights": {"special": 40, "unique": 60}, "guaranteed": ["golden_handshake"], "guaranteed_once": true}
+  }
+}

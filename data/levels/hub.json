@@ -1,0 +1,138 @@
+{
+  "id": "hub",
+  "name": "The Lobby",
+  "subtitle": "Floor 0 - Onboarding & Amenities",
+  "type": "hub",
+  "safe": true,
+  "enemy_level": 1.0,
+  "theme": {
+    "floor_color": "#f6e1b4",
+    "floor_seam": "#eac48c",
+    "floor_pattern": 1,
+    "wall_color": "#f7b8b0",
+    "wall_trim": "#e0857f",
+    "wall_height": 2.4,
+    "ambient_color": "#a58ed8",
+    "ambient_energy": 0.62,
+    "bg_color": "#2a2340",
+    "sun_energy": 0.45,
+    "sun_color": "#fff1d6",
+    "light_color": "#ffe9b0",
+    "light_energy": 0.5,
+    "light_range": 7,
+    "light_spacing": 4,
+    "flicker_chance": 0.02,
+    "fog_density": 0.0,
+    "corrupt_color": "#ff4f8b",
+    "corrupt_start": 999,
+    "corrupt_end": 1000,
+    "corrupt_light_color": "#ff3366",
+    "screen_color": "#9ff0d8",
+    "ambient": "hub",
+    "exposure": 1.0,
+    "saturation": 1.12,
+    "post": {
+      "vignette": 0.18,
+      "scanline": 0.0,
+      "glitch": 0.0,
+      "tint": "#ffffff"
+    },
+    "sign_color": "#5d4bb0",
+    "sign_text": "#fff6dc",
+    "props": {
+      "desk": "#ffd47a",
+      "chair": "#7a8ce0",
+      "partition": "#9fd6c8",
+      "table": "#e98a6a",
+      "crt": "#f3e8cf",
+      "cabinet": "#b9c3f0",
+      "printer": "#ece6f7",
+      "plant": "#7cc47f",
+      "server": "#3a3d6b"
+    }
+  },
+  "map": [
+    "#############E##############",
+    "#ff,,,,,,,,x,,,x,,,,,,,,,ff#",
+    "#,,,,,,,,,,,,,,,,,,,,,,,,,,#",
+    "#,,$,,,,,,,,,,,,,,,,,,,,B,,#",
+    "#,,,,,,,,,,,,,,,,,,,,,,,,,,#",
+    "#gggggg,,,,,,,,,,,,,,gggggg#",
+    "#,,,,,,,,,,,,G,,,,,,,,,,,,,#",
+    "#,,,,,,,,,,,,,,,,,,,,,,,p,,#",
+    "#,,w,,,,dd,,,,,,,,dd,,,,,,,#",
+    "#,,,,,,,,,,,,,,,,,,,,,,,,,,#",
+    "#,,N,,,,,,,,,P,,,,,,,,,,U,,#",
+    "#,,,,,,,,,,,,,,,,,,,,,,,,,,#",
+    "#,,,,,,,dd,,,,,,,,dd,,,,,,,#",
+    "#,,,,,,,,,,,,,,,,,,,,,,,,,,#",
+    "#f,,,,kk,,,,,,,,,,,,kk,,,,f#",
+    "############################"
+  ],
+  "legend_note": "# wall, ,/. floor, g glass, d desk, k/h partition, t table, x server rack, p printer, w water cooler, f filing cabinet, c cables, o chair, P player start, G golden computer, E elevator, R red door candidate, X exit, C chest, K boss, $ shop, B blacksmith, N enchanter, U upgrades, 1-9 encounters",
+  "computers": [
+    {
+      "id": "lobby_terminal",
+      "name": "Lobby Terminal"
+    }
+  ],
+  "exits": [
+    {
+      "to": "office_floor",
+      "name": "Floor 7 - Open Plan"
+    }
+  ],
+  "stations": {
+    "$": {
+      "tab": "shop",
+      "name": "Procurement",
+      "title": "SHOP",
+      "npc": {
+        "body": 1,
+        "palette": 1,
+        "hair": 1,
+        "face": 3
+      }
+    },
+    "B": {
+      "tab": "forge",
+      "name": "IT Hardware Forge",
+      "title": "BLACKSMITH",
+      "npc": {
+        "body": 3,
+        "palette": 6,
+        "hair": 6,
+        "face": 4
+      }
+    },
+    "N": {
+      "tab": "enchant",
+      "name": "Software Licensing",
+      "title": "ENCHANTMENTS",
+      "npc": {
+        "body": 4,
+        "palette": 7,
+        "hair": 3,
+        "face": 1
+      }
+    },
+    "U": {
+      "tab": "growth",
+      "name": "HR Development",
+      "title": "PERFORMANCE",
+      "npc": {
+        "body": 0,
+        "palette": 5,
+        "hair": 2,
+        "face": 5
+      }
+    }
+  },
+  "signs": [
+    "WELCOME, VALUED ASSET",
+    "YOUR WELLNESS IS OUR PRIORITY",
+    "PRODUCTIVITY IS PEACE",
+    "SMILE. YOU ARE BEING MEASURED"
+  ],
+  "encounters": {}
+}

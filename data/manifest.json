@@ -1,0 +1,6 @@
+{
+  "_doc": "Lists which data files are loaded. Add new item files or level files here.",
+  "item_files": ["items/weapons.json", "items/armor.json", "items/accessories.json"],
+  "level_files": ["levels/hub.json", "levels/office_floor.json", "levels/dungeon_server_room.json"],
+  "hub_level": "hub"
+}

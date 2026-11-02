@@ -1,0 +1,105 @@
+{
+  "_doc": "CHARACTER APPEARANCE options for the onboarding screen (see scripts/actors/character_visual.gd). bodies: torso = blazer [width at the hem, height, depth], head = [w, h, d], head_shape = a mesh kit shape ('head' or 'sphere'), leg_len, scale. hair_styles: parts in HEAD UNITS (the head is a 1x1x1 box around its centre, y up, -z = the face), colour tokens come from the palette ('hair', 'accent', 'skin', ...); hide_ears hides the ears under hoods and long hair. faces: painted by shaders/character.gdshader in head widths from the head centre (eye_pos = [distance from the centre line, height], eye_size = radii); mouth = smile|cat|open|flat|grin, glasses = none|round|square, sclera 1 = white eyes with a coloured iris, lid = sleepy upper lids, lash/brow = line thickness, brow_tilt > 0 frowns, < 0 worries. palettes recolour the outfit.",
+  "bodies": [
+    {"id": "associate", "name": "Associate", "torso": [0.64, 0.52, 0.46], "head": [0.84, 0.76, 0.76], "head_shape": "head", "leg_len": 0.35, "scale": 1.0},
+    {"id": "manager", "name": "Manager", "torso": [0.76, 0.56, 0.58], "head": [0.86, 0.76, 0.78], "head_shape": "head", "leg_len": 0.33, "scale": 1.06},
+    {"id": "intern", "name": "Intern", "torso": [0.56, 0.44, 0.42], "head": [0.88, 0.82, 0.8], "head_shape": "head", "leg_len": 0.3, "scale": 0.94},
+    {"id": "contractor", "name": "Contractor", "torso": [0.8, 0.52, 0.54], "head": [0.8, 0.72, 0.74], "head_shape": "head", "leg_len": 0.36, "scale": 1.06},
+    {"id": "temp", "name": "Temp", "torso": [0.56, 0.6, 0.42], "head": [0.78, 0.76, 0.72], "head_shape": "head", "leg_len": 0.44, "scale": 1.0}
+  ],
+  "hair_styles": [
+    {"id": "neat", "name": "Neat Side Part", "parts": [
+      {"shape": "dome", "size": [1.09, 0.42, 1.09], "pos": [0, 0.33, 0], "color": "hair"},
+      {"shape": "dome", "size": [1.09, 0.6, 0.9], "pos": [0, 0.07, 0.3], "rot": [90, 0, 0], "color": "hair"},
+      {"shape": "sphere", "size": [0.62, 0.26, 0.24], "pos": [-0.17, 0.25, -0.41], "rot": [0, 0, -14], "color": "hair"},
+      {"shape": "sphere", "size": [0.34, 0.2, 0.2], "pos": [0.27, 0.27, -0.4], "rot": [0, 0, 18], "color": "hair"},
+      {"shape": "softbox", "size": [0.1, 0.32, 0.18], "pos": [-0.475, 0.02, -0.1], "color": "hair"},
+      {"shape": "softbox", "size": [0.1, 0.32, 0.18], "pos": [0.475, 0.02, -0.1], "color": "hair"}]},
+    {"id": "bun", "name": "Corporate Bun", "parts": [
+      {"shape": "dome", "size": [1.09, 0.42, 1.09], "pos": [0, 0.33, 0], "color": "hair"},
+      {"shape": "dome", "size": [1.09, 0.6, 0.9], "pos": [0, 0.07, 0.3], "rot": [90, 0, 0], "color": "hair"},
+      {"shape": "sphere", "size": [0.44, 0.42, 0.42], "pos": [0, 0.5, 0.36], "color": "hair"},
+      {"shape": "sphere", "size": [0.46, 0.2, 0.2], "pos": [-0.2, 0.27, -0.41], "rot": [0, 0, -20], "color": "hair"},
+      {"shape": "sphere", "size": [0.46, 0.2, 0.2], "pos": [0.2, 0.27, -0.41], "rot": [0, 0, 20], "color": "hair"}]},
+    {"id": "bob", "name": "Quarterly Bob", "hide_ears": true, "parts": [
+      {"shape": "dome", "size": [1.12, 0.44, 1.12], "pos": [0, 0.32, 0], "color": "hair"},
+      {"shape": "dome", "size": [1.14, 0.62, 1.02], "pos": [0, 0.02, 0.31], "rot": [90, 0, 0], "color": "hair"},
+      {"shape": "capsule", "size": [0.24, 0.74, 0.62], "pos": [-0.5, -0.08, -0.04], "color": "hair"},
+      {"shape": "capsule", "size": [0.24, 0.74, 0.62], "pos": [0.5, -0.08, -0.04], "color": "hair"},
+      {"shape": "capsule", "size": [0.2, 0.98, 0.2], "pos": [0, 0.25, -0.43], "rot": [0, 0, 90], "color": "hair"}]},
+    {"id": "beret", "name": "Creative Beret", "parts": [
+      {"shape": "dome", "size": [1.09, 0.42, 1.09], "pos": [0, 0.33, 0], "color": "hair"},
+      {"shape": "dome", "size": [1.09, 0.6, 0.9], "pos": [0, 0.07, 0.3], "rot": [90, 0, 0], "color": "hair"},
+      {"shape": "sphere", "size": [0.4, 0.2, 0.2], "pos": [-0.24, 0.24, -0.42], "rot": [0, 0, -16], "color": "hair"},
+      {"shape": "sphere", "size": [0.4, 0.2, 0.2], "pos": [0.14, 0.23, -0.43], "rot": [0, 0, 10], "color": "hair"},
+      {"shape": "sphere", "size": [1.2, 0.3, 1.14], "pos": [0.07, 0.53, 0.03], "rot": [-6, 0, -12], "color": "accent"},
+      {"shape": "cyl", "size": [0.08, 0.1, 0.08], "pos": [0.12, 0.7, 0.04], "rot": [0, 0, -12], "color": "accent"},
+      {"shape": "gem", "size": [0.14, 0.14, 0.06], "pos": [-0.32, 0.5, -0.4], "color": "#ffd75e", "emit": 0.6}]},
+    {"id": "hood", "name": "Work-From-Home Hood", "hide_ears": true, "parts": [
+      {"shape": "dome", "size": [1.3, 0.95, 1.3], "pos": [0, 0.05, 0.1], "rot": [90, 0, 0], "color": "#f0a04b"},
+      {"shape": "torus", "size": [1.3, 0.65, 1.28], "pos": [0, 0.05, -0.38], "rot": [90, 0, 0], "color": "#e48c38"},
+      {"shape": "sphere", "size": [0.56, 0.2, 0.2], "pos": [0, 0.29, -0.42], "color": "hair"},
+      {"shape": "sphere", "size": [0.24, 0.24, 0.24], "pos": [0, 0.66, 0.16], "color": "#fff1dc"}]},
+    {"id": "bald", "name": "Executive Shine", "parts": [
+      {"shape": "sphere", "size": [0.16, 0.3, 0.42], "pos": [-0.48, 0.08, 0.14], "color": "hair"},
+      {"shape": "sphere", "size": [0.16, 0.3, 0.42], "pos": [0.48, 0.08, 0.14], "color": "hair"},
+      {"shape": "sphere", "size": [0.7, 0.22, 0.24], "pos": [0, 0.02, 0.45], "color": "hair"}]},
+    {"id": "hardhat", "name": "Facilities Hard Hat", "parts": [
+      {"shape": "dome", "size": [1.14, 0.5, 1.14], "pos": [0, 0.37, 0], "color": "#f2c230"},
+      {"shape": "cyl", "size": [1.34, 0.05, 1.34], "pos": [0, 0.13, -0.04], "color": "#f2c230"},
+      {"shape": "dome", "size": [0.18, 0.55, 1.17], "pos": [0, 0.375, 0], "color": "#e0ad18"},
+      {"shape": "dome", "size": [1.09, 0.6, 0.9], "pos": [0, 0.04, 0.3], "rot": [90, 0, 0], "color": "hair"}]},
+    {"id": "visor", "name": "Accountant Visor", "parts": [
+      {"shape": "dome", "size": [1.09, 0.42, 1.09], "pos": [0, 0.33, 0], "color": "hair"},
+      {"shape": "dome", "size": [1.09, 0.6, 0.9], "pos": [0, 0.07, 0.3], "rot": [90, 0, 0], "color": "hair"},
+      {"shape": "torus", "size": [1.12, 0.35, 1.12], "pos": [0, 0.24, 0], "rot": [8, 0, 0], "color": "#3fae5a"},
+      {"shape": "box", "size": [0.86, 0.04, 0.38], "pos": [0, 0.21, -0.62], "rot": [-12, 0, 0], "color": "#3fae5a"}]},
+    {"id": "spiky", "name": "Casual Friday", "parts": [
+      {"shape": "dome", "size": [1.09, 0.42, 1.09], "pos": [0, 0.33, 0], "color": "hair"},
+      {"shape": "dome", "size": [1.09, 0.6, 0.9], "pos": [0, 0.07, 0.3], "rot": [90, 0, 0], "color": "hair"},
+      {"shape": "cone", "size": [0.3, 0.36, 0.3], "pos": [-0.26, 0.56, -0.1], "rot": [-20, 0, 25], "color": "hair"},
+      {"shape": "cone", "size": [0.32, 0.42, 0.32], "pos": [0.0, 0.62, -0.06], "rot": [-24, 0, 0], "color": "hair"},
+      {"shape": "cone", "size": [0.3, 0.36, 0.3], "pos": [0.26, 0.56, -0.1], "rot": [-20, 0, -25], "color": "hair"},
+      {"shape": "cone", "size": [0.3, 0.34, 0.3], "pos": [0.0, 0.55, 0.26], "rot": [30, 0, 0], "color": "hair"},
+      {"shape": "sphere", "size": [0.62, 0.22, 0.22], "pos": [0, 0.26, -0.42], "color": "hair"}]},
+    {"id": "pigtails", "name": "Twin Deadlines", "parts": [
+      {"shape": "dome", "size": [1.09, 0.42, 1.09], "pos": [0, 0.33, 0], "color": "hair"},
+      {"shape": "dome", "size": [1.09, 0.6, 0.9], "pos": [0, 0.07, 0.3], "rot": [90, 0, 0], "color": "hair"},
+      {"shape": "sphere", "size": [0.36, 0.48, 0.36], "pos": [-0.6, -0.06, 0.22], "color": "hair"},
+      {"shape": "sphere", "size": [0.36, 0.48, 0.36], "pos": [0.6, -0.06, 0.22], "color": "hair"},
+      {"shape": "sphere", "size": [0.14, 0.14, 0.14], "pos": [-0.5, 0.16, 0.2], "color": "accent"},
+      {"shape": "sphere", "size": [0.14, 0.14, 0.14], "pos": [0.5, 0.16, 0.2], "color": "accent"},
+      {"shape": "softbox", "size": [0.98, 0.18, 0.2], "pos": [0, 0.25, -0.43], "color": "hair"}]},
+    {"id": "curls", "name": "Brainstorm Curls", "parts": [
+      {"shape": "dome", "size": [1.12, 0.44, 1.12], "pos": [0, 0.33, 0], "color": "hair"},
+      {"shape": "dome", "size": [1.1, 0.62, 0.92], "pos": [0, 0.06, 0.3], "rot": [90, 0, 0], "color": "hair"},
+      {"shape": "sphere", "size": [0.42, 0.38, 0.4], "pos": [-0.3, 0.5, -0.12], "color": "hair"},
+      {"shape": "sphere", "size": [0.44, 0.4, 0.42], "pos": [0.04, 0.56, -0.18], "color": "hair"},
+      {"shape": "sphere", "size": [0.42, 0.38, 0.4], "pos": [0.34, 0.5, -0.06], "color": "hair"},
+      {"shape": "sphere", "size": [0.42, 0.38, 0.4], "pos": [-0.2, 0.52, 0.28], "color": "hair"},
+      {"shape": "sphere", "size": [0.42, 0.38, 0.4], "pos": [0.22, 0.52, 0.3], "color": "hair"},
+      {"shape": "sphere", "size": [0.3, 0.24, 0.24], "pos": [-0.22, 0.27, -0.42], "color": "hair"},
+      {"shape": "sphere", "size": [0.3, 0.24, 0.24], "pos": [0.14, 0.28, -0.43], "color": "hair"}]}
+  ],
+  "faces": [
+    {"id": "bright", "name": "Bright-Eyed", "eye_size": [0.066, 0.09], "shine": 0.36, "mouth": "smile", "blush": 0.55},
+    {"id": "sleepy", "name": "Sleepy Analyst", "eye_size": [0.075, 0.092], "lid": 0.42, "lash": 0.024, "shine": 0.3, "brow": 0.013, "brow_y": 0.125, "mouth": "open", "mouth_w": 0.05, "blush": 0.6},
+    {"id": "button", "name": "Button Eyes", "eye_pos": [0.16, -0.03], "eye_size": [0.034, 0.044], "shine": 0.3, "mouth": "cat", "mouth_w": 0.05, "blush": 0.75},
+    {"id": "sparkle", "name": "Sparkle Intern", "eye_size": [0.074, 0.096], "sclera": 1, "iris": 0.84, "iris_color": "#3d6fc4", "shine": 0.3, "lash": 0.02, "flick": 1, "mouth": "smile", "mouth_w": 0.04, "blush": 0.6},
+    {"id": "gogetter", "name": "Go-Getter", "eye_size": [0.06, 0.08], "shine": 0.34, "brow": 0.017, "brow_y": 0.12, "brow_tilt": 0.7, "mouth": "grin", "mouth_w": 0.055, "blush": 0.35},
+    {"id": "specs", "name": "Spreadsheet Specs", "eye_size": [0.048, 0.064], "shine": 0.32, "glasses": "round", "mouth": "smile", "mouth_w": 0.045, "blush": 0.4},
+    {"id": "overtime", "name": "Overtime", "eye_size": [0.058, 0.074], "lid": 0.32, "lash": 0.014, "shine": 0.2, "bags": 1, "brow": 0.012, "brow_tilt": -0.5, "mouth": "flat", "mouth_w": 0.05, "blush": 0.12},
+    {"id": "freckles", "name": "Freckled Optimist", "eye_size": [0.068, 0.088], "sclera": 1, "iris_color": "#6b4226", "shine": 0.32, "freckles": 1, "mouth": "open", "mouth_w": 0.05, "blush": 0.5},
+    {"id": "manager", "name": "Middle Manager", "eye_size": [0.05, 0.062], "shine": 0.28, "glasses": "square", "brow": 0.016, "brow_y": 0.13, "brow_tilt": 0.25, "mouth": "flat", "mouth_w": 0.05, "blush": 0.25}
+  ],
+  "palettes": [
+    {"name": "Beige Compliance", "suit": "#b8a988", "shirt": "#f1ece0", "skin": "#f0c9a4", "accent": "#a8323a", "hair": "#4a3324", "pants": "#4a4a52", "shoes": "#3a2a22"},
+    {"name": "Midnight Audit", "suit": "#34406a", "shirt": "#e3eaf4", "skin": "#c69676", "accent": "#e2b23a", "hair": "#1c1a22", "pants": "#252b45", "shoes": "#1e1e26"},
+    {"name": "Mint Refinement", "suit": "#7dbba6", "shirt": "#f2faf6", "skin": "#8d5a3b", "accent": "#2d5f8c", "hair": "#241811", "pants": "#3e6a5e", "shoes": "#2a2420"},
+    {"name": "Executive Charcoal", "suit": "#43434c", "shirt": "#ffffff", "skin": "#f6d8be", "accent": "#c42d38", "hair": "#b9b4ae", "pants": "#2e2e36", "shoes": "#191919"},
+    {"name": "Synergy Teal", "suit": "#24838c", "shirt": "#f7f6ef", "skin": "#5c3a24", "accent": "#f2a541", "hair": "#141012", "pants": "#1b5259", "shoes": "#1c1c1c"},
+    {"name": "Mauve Memo", "suit": "#9a78a0", "shirt": "#f8f0f6", "skin": "#e2b08a", "accent": "#4b3470", "hair": "#7a4424", "pants": "#5a4662", "shoes": "#2a1e2e"},
+    {"name": "Hazard Orange", "suit": "#e07a34", "shirt": "#fff6ea", "skin": "#a97452", "accent": "#2b2b38", "hair": "#3a2416", "pants": "#41414a", "shoes": "#222222"},
+    {"name": "Glitch Violet", "suit": "#5a3ca0", "shirt": "#ece6ff", "skin": "#f4ceb0", "accent": "#39e88a", "hair": "#ece8f4", "pants": "#33235e", "shoes": "#16121e"}
+  ]
+}

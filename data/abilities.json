@@ -1,0 +1,10 @@
+{
+  "_doc": "SPECIAL ABILITIES (Q). Each weapon names one via its 'special' field. type = spin | cleave | blink | quake | lunge (handled in scripts/actors/player.gd).",
+  "abilities": {
+    "spin": {"name": "Performance Review", "type": "spin", "description": "Whirl around, striking every enemy nearby.", "cooldown": 6, "damage_mult": 1.6, "radius": 3.3},
+    "cleave": {"name": "Budget Cleave", "type": "cleave", "description": "A huge frontal cleave that sends enemies flying.", "cooldown": 7, "damage_mult": 2.4, "range": 4.4, "arc": 170},
+    "blink": {"name": "Unscheduled Visit", "type": "blink", "description": "Teleport toward the cursor and land a guaranteed critical strike.", "cooldown": 5, "damage_mult": 1.6, "distance": 7, "radius": 2.6},
+    "quake": {"name": "Order in the Office", "type": "quake", "description": "Slam the floor, damaging and stunning everything around you.", "cooldown": 8, "damage_mult": 1.8, "radius": 4.6, "stun": 1.6},
+    "lunge": {"name": "Deadline Rush", "type": "lunge", "description": "Dash forward, piercing every enemy in your path.", "cooldown": 5, "damage_mult": 2.0, "distance": 8, "width": 1.8}
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "_doc": "DUNGEONS reachable through red meeting-room doors. 'level' is the level id loaded on accept. The invite text is shown as a calendar invitation.",
+  "dungeons": [
+    {
+      "id": "server_room_b",
+      "level": "dungeon_server_room",
+      "meeting_title": "MANDATORY: Q4 Restructuring Sync",
+      "location": "Server Room B (Sub-basement 3)",
+      "organizer": "The Regional Manager",
+      "recommended_level": 3,
+      "description": "Attendance is compulsory. Corrupted processes have been reported. Bring your own weapon. Refreshments will not be provided.",
+      "threat": "HIGH"
+    }
+  ]
+}

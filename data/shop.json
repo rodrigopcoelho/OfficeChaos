@@ -1,0 +1,31 @@
+{
+  "_doc": "SHOP (Procurement). stock_size items are drawn from 'pool' by weight whenever you return to the Lobby from the field, or when you pay refresh_cost. Items above player level + level_slack are skipped. price_mult scales item prices.",
+  "stock_size": 8,
+  "refresh_cost": 30,
+  "level_slack": 3,
+  "price_mult": 1.0,
+  "pool": [
+    {"id": "compliance_longsword", "weight": 10},
+    {"id": "budget_cut_axe", "weight": 10},
+    {"id": "paper_cut_dagger", "weight": 10},
+    {"id": "disciplinary_gavel", "weight": 9},
+    {"id": "laser_pointer_pike", "weight": 9},
+    {"id": "binary_saber", "weight": 5},
+    {"id": "the_downsizer", "weight": 4},
+    {"id": "keylogger_kris", "weight": 4},
+    {"id": "deadline_pike", "weight": 4},
+    {"id": "overtime_claymore", "weight": 4},
+    {"id": "excalibyte", "weight": 1},
+    {"id": "ctrl_alt_maul", "weight": 1},
+    {"id": "business_casual_mail", "weight": 6},
+    {"id": "cardigan_of_plate", "weight": 8},
+    {"id": "clean_room_coverall", "weight": 5},
+    {"id": "firewall_cuirass", "weight": 5},
+    {"id": "executive_plate", "weight": 1},
+    {"id": "lanyard_ring", "weight": 8},
+    {"id": "usb_talisman", "weight": 8},
+    {"id": "bottomless_coffee_amulet", "weight": 5},
+    {"id": "security_badge_shield", "weight": 5},
+    {"id": "ring_of_synergy", "weight": 1}
+  ]
+}

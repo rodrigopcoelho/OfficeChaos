@@ -1,0 +1,47 @@
+{
+  "_doc": "ACCESSORIES (rings, amulets, shields). stats are flat bonuses. visual.parts are attached to the off-hand; rings without parts render as a ring icon.",
+  "items": [
+    {
+      "id": "lanyard_ring", "slot": "accessory", "name": "Lanyard Ring", "rarity": "common", "level_req": 1, "price": 60,
+      "description": "A visitor badge clip bent into a ring. Sharpens focus.",
+      "stats": {"crit_chance": 0.04}, "effects": [],
+      "visual": {"ring_color": "#4a7bd0", "parts": []}
+    },
+    {
+      "id": "usb_talisman", "slot": "accessory", "name": "USB Talisman", "rarity": "common", "level_req": 1, "price": 70,
+      "description": "Always the wrong way up on the first try. Absorbs stray DATA.",
+      "stats": {"data_gain_pct": 0.1, "pickup_radius": 1.5}, "effects": [],
+      "visual": {"parts": [
+        {"shape": "box", "size": [0.12, 0.05, 0.22], "pos": [0, 0, -0.05], "color": "#30303a"},
+        {"shape": "box", "size": [0.09, 0.04, 0.09], "pos": [0, 0, -0.2], "color": "#c8ccd4"}
+      ]}
+    },
+    {
+      "id": "bottomless_coffee_amulet", "slot": "accessory", "name": "Bottomless Coffee Amulet", "rarity": "special", "level_req": 2, "price": 230,
+      "description": "Refills itself. Nobody knows from where. Nobody asks.",
+      "stats": {"hp_regen": 2.0, "move_speed_pct": 0.06, "attack_speed_pct": 0.05}, "effects": [{"enchant": "overclock", "level": 1}],
+      "visual": {"parts": [
+        {"shape": "cyl", "size": [0.18, 0.2, 0.18], "pos": [0, 0, -0.05], "color": "#f3efe6"},
+        {"shape": "cyl", "size": [0.15, 0.02, 0.15], "pos": [0, 0.1, -0.05], "color": "#3b2416"}
+      ]}
+    },
+    {
+      "id": "security_badge_shield", "slot": "accessory", "name": "Security Badge Shield", "rarity": "special", "level_req": 3, "price": 260,
+      "description": "A kite shield with your ID photo laminated on the front. Access denied.",
+      "stats": {"block_chance": 0.12, "defense": 5}, "effects": [{"enchant": "firewall", "level": 1}],
+      "visual": {"parts": [
+        {"shape": "box", "size": [0.08, 0.7, 0.5], "pos": [-0.08, 0.05, -0.05], "color": "#3a5a8a"},
+        {"shape": "box", "size": [0.02, 0.26, 0.2], "pos": [-0.13, 0.12, -0.05], "color": "#f0ead8"},
+        {"shape": "box", "size": [0.02, 0.06, 0.4], "pos": [-0.13, -0.15, -0.05], "color": "#e2aa2c", "emit": 0.8}
+      ]}
+    },
+    {
+      "id": "ring_of_synergy", "slot": "accessory", "name": "Ring of Mandatory Synergy", "rarity": "unique", "level_req": 4, "price": 700,
+      "description": "Teamwork makes the dream work. The dream is violence.",
+      "stats": {"damage_pct": 0.2, "crit_chance": 0.05}, "effects": [{"enchant": "overload", "level": 2}],
+      "visual": {"ring_color": "#ffcc33", "parts": [
+        {"shape": "sphere", "size": [0.14, 0.14, 0.14], "pos": [0, 0, -0.05], "color": "#ffcc33", "emit": 2.0}
+      ]}
+    }
+  ]
+}

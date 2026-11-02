@@ -5,6 +5,8 @@
   "type": "field",
   "safe": false,
   "enemy_level": 1.0,
+  "dressing": {"L": 4, "S": 3, "V": 1, "J": 1},
+  "dressing_density": 0.4,
   "theme": {
     "floor_color": "#cad59c",
     "floor_seam": "#a7b97a",

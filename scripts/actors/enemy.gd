@@ -57,6 +57,8 @@ var is_boss := false
 var height := 1.8
 var float_h := 0.0
 var aura_ring: MeshInstance3D
+var move_blend := 0.0  # smoothed walk amount (knockback no longer jerks the legs)
+var _hit_tween: Tween
 
 
 func setup(id: String, level_mult: float = 1.0, clearance_tier: int = 0) -> Enemy:
@@ -341,7 +343,7 @@ func _begin_windup(p) -> void:
 	to.y = 0
 	if to.length() > 0.05:
 		facing = to.normalized()
-	pivot.rotation.y = atan2(-facing.x, -facing.z)
+	# (the pivot turns to `facing` quickly in _animate rather than snapping)
 	var tcol := Color(1, 0.15, 0.2)
 	match str(attack.get("type", "melee")):
 		"melee":
@@ -485,9 +487,11 @@ func _move(desired: Vector3, delta: float) -> void:
 
 
 func _animate(delta: float, desired: Vector3) -> void:
-	if state != "windup" and state != "lunge":
-		pivot.rotation.y = lerp_angle(pivot.rotation.y, atan2(-facing.x, -facing.z), 1.0 - exp(-10.0 * delta))
-	var moving := clampf(Vector2(velocity.x, velocity.z).length() / maxf(speed, 0.1), 0.0, 1.0)
+	var turn_speed := 24.0 if state == "windup" or state == "lunge" else 10.0
+	pivot.rotation.y = lerp_angle(pivot.rotation.y, atan2(-facing.x, -facing.z), 1.0 - exp(-turn_speed * delta))
+	var raw := clampf(Vector2(move_vel.x, move_vel.z).length() / maxf(speed, 0.1), 0.0, 1.0)
+	move_blend = lerpf(move_blend, raw, 1.0 - exp(-8.0 * delta))
+	var moving := move_blend
 	var t := anim_t * (5.0 + speed * 1.5)
 	visual.position.y = float_h + (sin(anim_t * 2.5) * 0.15 if float_h > 0.0 else absf(sin(t)) * 0.08 * moving)
 	if parts.has("leg_l"):
@@ -528,6 +532,13 @@ func take_hit(dmg: float, crit: bool, from_pos: Vector3, knockback: float) -> bo
 	alert()
 	Fx.damage_number(global_position + Vector3(randf_range(-0.3, 0.3), height + 0.2, 0), final, crit)
 	Fx.flash(visual, Color(1, 1, 1), 0.08)
+	# squash-and-recover punch (on the pivot: the visual's scale belongs to boss/death tweens)
+	if _hit_tween:
+		_hit_tween.kill()
+	var punch := (0.2 if crit else 0.12) * (0.35 if is_boss else 1.0)
+	pivot.scale = Vector3(1.0 + punch * 0.8, 1.0 - punch, 1.0 + punch * 0.8)
+	_hit_tween = create_tween()
+	_hit_tween.tween_property(pivot, "scale", Vector3.ONE, 0.22).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	Fx.burst(global_position + Vector3(0, height * 0.55, 0), MeshFactory.col(def.get("color", "#ff4040")), 5 if not crit else 10, 4.0, 0.09, 0.35)
 	Audio.play("crit" if crit else "hit", -2.0)
 	var dir := global_position - from_pos

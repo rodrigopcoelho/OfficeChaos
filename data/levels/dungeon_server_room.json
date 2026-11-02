@@ -5,7 +5,12 @@
   "type": "dungeon",
   "safe": false,
   "enemy_level": 1.35,
+  "dressing": {"S": 4, "L": 1, "V": 1},
+  "dressing_density": 0.35,
   "theme": {
+    "motes_color": "#ff6fa8",
+    "motes_rise": true,
+    "motes": 90,
     "floor_color": "#2a2c55",
     "floor_seam": "#1d1e3e",
     "floor_pattern": 1,

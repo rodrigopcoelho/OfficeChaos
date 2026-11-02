@@ -41,8 +41,12 @@ var body_def: Dictionary = {}
 var face_def: Dictionary = {}
 var walk_t := 0.0
 var idle_t := 0.0
+var move_blend := 0.0   # smoothed 0..1 walk amount: poses blend instead of snapping
+var _prev_yaw := 0.0
+var _turn_lean := 0.0
 var mood := "neutral"
 var _swing_tween: Tween
+var _roll_tween: Tween
 var _suit_color := Color.GRAY
 var _face_mat: ShaderMaterial
 var _suit_mat: ShaderMaterial
@@ -275,66 +279,94 @@ func face_smooth(dir: Vector3, delta: float, speed: float = 16.0) -> void:
 
 
 func animate(speed_ratio: float, delta: float) -> void:
+	## Procedural locomotion. The walk and idle poses are always both evaluated and
+	## blended by `move_blend` (eased toward the current speed), so starting, stopping
+	## and changing pace flow instead of popping. Footfalls squash the body a little,
+	## the head lags behind the bob, and turning leans the body into the curve.
 	if body == null:
 		return
 	idle_t += delta
 	_update_face(delta)
-	if speed_ratio > 0.05:
-		# A bouncy waddle: short legs swing fast, the big head bobs and sways.
-		walk_t += delta * (7.0 + 7.0 * speed_ratio)
-		var s := sin(walk_t) * 0.7 * clampf(speed_ratio, 0.0, 1.0)
-		leg_l.rotation.x = s
-		leg_r.rotation.x = -s
-		arm_l.rotation.x = -s * 0.8
-		body.position.y = absf(sin(walk_t)) * 0.08 * speed_ratio
-		body.rotation.z = sin(walk_t) * 0.06 * speed_ratio
-		head.rotation.z = -sin(walk_t) * 0.05 * speed_ratio
-	else:
-		var k := minf(10.0 * delta, 1.0)
-		leg_l.rotation.x = lerpf(leg_l.rotation.x, 0.0, k)
-		leg_r.rotation.x = lerpf(leg_r.rotation.x, 0.0, k)
-		arm_l.rotation.x = lerpf(arm_l.rotation.x, 0.0, k)
-		body.position.y = sin(idle_t * 2.0) * 0.012
-		body.rotation.z = lerpf(body.rotation.z, 0.0, k)
-		head.rotation.z = lerpf(head.rotation.z, sin(idle_t * 0.9) * 0.035, k)
-	head.rotation.x = HEAD_TILT + sin(idle_t * 1.3) * 0.03
+	var target := clampf(speed_ratio, 0.0, 1.0)
+	move_blend = lerpf(move_blend, target, 1.0 - exp(-(10.0 if target > move_blend else 7.0) * delta))
+	var b := move_blend
+	# The stride keeps cycling while blending out, so the legs settle instead of freezing.
+	walk_t += delta * (7.0 + 7.0 * maxf(b, target))
+	var stride := sin(walk_t)
+	var bounce := absf(stride)
+	var s := stride * 0.7 * b
+	leg_l.rotation.x = s
+	leg_r.rotation.x = -s
+	arm_l.rotation.x = -s * 0.8 + sin(idle_t * 1.1) * 0.04 * (1.0 - b)
+	arm_l.rotation.z = -0.06 * b
+	var idle_bob := sin(idle_t * 2.0) * 0.012
+	body.position.y = lerpf(idle_bob, bounce * 0.08 * b, b)
+	# squash at each footfall, stretch at the top of the hop
+	var squash := (0.5 - bounce) * 0.07 * b + sin(idle_t * 2.0) * 0.008 * (1.0 - b)
+	body.scale = Vector3(1.0 - squash * 0.5, 1.0 + squash, 1.0 - squash * 0.5)
+	# lean into the walk and into turns
+	var yaw_vel := wrapf(rotation.y - _prev_yaw, -PI, PI) / maxf(delta, 0.0001)
+	_prev_yaw = rotation.y
+	_turn_lean = lerpf(_turn_lean, clampf(yaw_vel * 0.025, -0.15, 0.15) * b, 1.0 - exp(-8.0 * delta))
+	if _body_free():
+		body.rotation.x = lerpf(body.rotation.x, -0.1 * b, 1.0 - exp(-10.0 * delta))
+	body.rotation.z = stride * 0.06 * b + _turn_lean
+	# the head sways against the body and dips a beat after each step
+	head.rotation.z = lerpf(sin(idle_t * 0.9) * 0.035, -stride * 0.05, b)
+	head.rotation.x = HEAD_TILT + sin(idle_t * 1.3) * 0.03 * (1.0 - b) + cos(walk_t * 2.0) * 0.04 * b
+
+
+func _body_free() -> bool:
+	## False while an attack or roll tween owns the body's pitch/yaw.
+	return (_swing_tween == null or not _swing_tween.is_running()) and (_roll_tween == null or not _roll_tween.is_running())
 
 
 func swing(sign_dir: float, arc_deg: float, dur: float, style: String) -> void:
+	## Strike poses snap in (the hit lands on the same frame), then the follow-through
+	## eases out: a short lunge, an overshoot past the strike, and a soft settle back to
+	## the rest pose (TRANS_BACK) instead of a linear return.
 	if weapon_pivot == null:
 		return
 	if _swing_tween:
 		_swing_tween.kill()
 	_swing_tween = create_tween()
+	var strike := dur * 0.3
 	match style:
 		"chop":
 			weapon_pivot.rotation = Vector3(deg_to_rad(80), 0, 0)
 			arm_r.rotation = Vector3(deg_to_rad(150), 0, 0)
 			_swing_tween.set_parallel(true)
-			_swing_tween.tween_property(weapon_pivot, "rotation:x", deg_to_rad(-55), dur * 0.3).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
-			_swing_tween.tween_property(arm_r, "rotation:x", deg_to_rad(40), dur * 0.3).set_ease(Tween.EASE_IN)
-			_swing_tween.tween_property(body, "rotation:x", deg_to_rad(-12), dur * 0.3)
+			_swing_tween.tween_property(weapon_pivot, "rotation:x", deg_to_rad(-60), strike).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
+			_swing_tween.tween_property(arm_r, "rotation:x", deg_to_rad(35), strike).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+			_swing_tween.tween_property(body, "rotation:x", deg_to_rad(-14), strike).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 		"thrust":
+			strike = dur * 0.25
 			weapon_pivot.rotation = Vector3(0, 0, 0)
 			arm_r.rotation = Vector3(deg_to_rad(80), 0, 0)
 			weapon_holder.position = Vector3(0, 0, 0.1)
 			_swing_tween.set_parallel(true)
-			_swing_tween.tween_property(weapon_holder, "position:z", -1.0, dur * 0.25).set_trans(Tween.TRANS_EXPO).set_ease(Tween.EASE_OUT)
-			_swing_tween.tween_property(body, "rotation:x", deg_to_rad(-10), dur * 0.25)
+			_swing_tween.tween_property(weapon_holder, "position:z", -1.0, strike).set_trans(Tween.TRANS_EXPO).set_ease(Tween.EASE_OUT)
+			_swing_tween.tween_property(body, "rotation:x", deg_to_rad(-10), strike).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 		_:
+			strike = dur * 0.32
 			var a := deg_to_rad(arc_deg * 0.5)
 			weapon_pivot.rotation = Vector3(0, a * sign_dir, 0)
 			arm_r.rotation = Vector3(deg_to_rad(80), a * sign_dir, 0)
 			_swing_tween.set_parallel(true)
-			_swing_tween.tween_property(weapon_pivot, "rotation:y", -a * sign_dir, dur * 0.32).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-			_swing_tween.tween_property(arm_r, "rotation:y", -a * sign_dir, dur * 0.32).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-			_swing_tween.tween_property(body, "rotation:y", -0.25 * sign_dir, dur * 0.32)
-	_swing_tween.chain().tween_interval(dur * 0.18)
+			_swing_tween.tween_property(weapon_pivot, "rotation:y", -a * sign_dir * 1.08, strike).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+			_swing_tween.tween_property(arm_r, "rotation:y", -a * sign_dir * 1.08, strike).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+			_swing_tween.tween_property(body, "rotation:y", -0.28 * sign_dir, strike).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	# a little step into the blow and back
+	_swing_tween.tween_property(body, "position:z", -0.12, strike * 0.5).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	_swing_tween.chain().tween_interval(dur * 0.14)
 	_swing_tween.chain().set_parallel(true)
-	_swing_tween.tween_property(weapon_pivot, "rotation", Vector3(REST_X, REST_Y, 0), dur * 0.45)
-	_swing_tween.tween_property(weapon_holder, "position", Vector3(0, 0, HOLD_Z), dur * 0.45)
-	_swing_tween.tween_property(arm_r, "rotation", Vector3(deg_to_rad(35), REST_Y, 0), dur * 0.45)
-	_swing_tween.tween_property(body, "rotation", Vector3.ZERO, dur * 0.45)
+	var back := dur * 0.5
+	_swing_tween.tween_property(weapon_pivot, "rotation", Vector3(REST_X, REST_Y, 0), back).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	_swing_tween.tween_property(weapon_holder, "position", Vector3(0, 0, HOLD_Z), back).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	_swing_tween.tween_property(arm_r, "rotation", Vector3(deg_to_rad(35), REST_Y, 0), back).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	_swing_tween.tween_property(body, "rotation:x", 0.0, back).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	_swing_tween.tween_property(body, "rotation:y", 0.0, back).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	_swing_tween.tween_property(body, "position:z", 0.0, back).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 
 
 func spin(dur: float) -> void:
@@ -345,14 +377,19 @@ func spin(dur: float) -> void:
 	_swing_tween = create_tween()
 	_swing_tween.tween_property(body, "rotation:y", -TAU, dur).from(0.0).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	_swing_tween.tween_callback(func() -> void:
-		body.rotation = Vector3.ZERO
+		body.rotation.y = 0.0
 		_rest_pose())
 
 
 func roll(dur: float) -> void:
-	var tw := create_tween()
-	tw.tween_property(body, "rotation:x", -TAU, dur).from(0.0)
-	tw.tween_callback(func() -> void: body.rotation.x = 0.0)
+	## Tuck, tumble (fast in the middle, soft at both ends), untuck.
+	if _roll_tween:
+		_roll_tween.kill()
+	_roll_tween = create_tween()
+	_roll_tween.tween_property(body, "rotation:x", -TAU, dur).from(0.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	_roll_tween.parallel().tween_property(head, "scale", Vector3(0.9, 0.9, 0.9), dur * 0.3).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	_roll_tween.parallel().tween_property(head, "scale", Vector3.ONE, dur * 0.4).set_delay(dur * 0.6).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	_roll_tween.tween_callback(func() -> void: body.rotation.x = 0.0)
 
 
 func die() -> void:
@@ -369,5 +406,8 @@ func revive() -> void:
 	if body:
 		body.rotation = Vector3.ZERO
 		body.position = Vector3.ZERO
+		body.scale = Vector3.ONE
+		head.scale = Vector3.ONE
+	move_blend = 0.0
 	express("neutral")
 	_rest_pose()

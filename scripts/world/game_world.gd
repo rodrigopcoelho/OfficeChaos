@@ -13,7 +13,10 @@ signal ready_to_show
 const CELL := 2.0
 const CHUNK_CELLS := 4
 const WALLISH := "#REX"
-const SOLID := "#REXgdktxpwfh$BNUGC"
+const SOLID := "#REXgdktxpwfh$BNUGCLSVJ"
+## Wall-side dressing placed by _populate(): tall plant, bookshelf, vending machine, floor lamp.
+const DRESSING := "LSVJ"
+const DEFAULT_DRESSING := {"L": 4, "S": 3, "V": 1, "J": 2}
 const NO_CELL := Vector2i(-1, -1)
 
 var level_id := ""
@@ -72,6 +75,7 @@ func _ready() -> void:
 	fx_root.name = "Fx"
 	add_child(fx_root)
 	_parse_map()
+	_populate()
 	_build_environment()
 	_build_floor()
 	_build_walls()
@@ -82,6 +86,7 @@ func _ready() -> void:
 	_batch_static()
 	rig = CameraRig.new()
 	add_child(rig)
+	_build_motes()
 	if menu_mode:
 		rig.orbit = true
 		rig.orbit_center = Vector3(width * CELL * 0.5, 0, height * CELL * 0.5)
@@ -91,6 +96,7 @@ func _ready() -> void:
 		if not level.get("safe", false):
 			_spawn_encounters()
 		_spawn_boss()
+	_spawn_coworkers()
 	apply_quality()
 	Audio.set_ambient(str(theme.get("ambient", "office")) if not menu_mode else "menu")
 	if GameState.ui:
@@ -189,6 +195,85 @@ func _open_dir(c: Vector2i) -> Vector3:
 	return Vector3.BACK
 
 
+func _wall_side(c: Vector2i) -> Vector2i:
+	## Direction of a plain wall touching cell `c` (doors and glass don't count), or ZERO.
+	for d in [Vector2i(0, -1), Vector2i(-1, 0), Vector2i(1, 0), Vector2i(0, 1)]:
+		if ch_at(c + d) == "#":
+			return d
+	return Vector2i.ZERO
+
+
+func _wall_yaw(c: Vector2i) -> float:
+	## Yaw that turns a prop's front (+z) away from its wall.
+	var w := _wall_side(c)
+	return atan2(float(-w.x), float(-w.y))
+
+
+func _populate() -> void:
+	## Dresses rooms along their walls with tall props (DRESSING) by rewriting floor
+	## cells in `rows` before anything is built, so collision, pathfinding and the
+	## props themselves all agree. Only cells in rooms at least 4 cells deep qualify,
+	## never next to doors, glass, stations or other props, and never against a south
+	## wall (those would stand between the camera and the room).
+	var weights: Dictionary = level.get("dressing", DEFAULT_DRESSING)
+	var total := 0.0
+	for k in weights:
+		total += float(weights[k])
+	if total <= 0.0:
+		return
+	var density := float(level.get("dressing_density", 0.35))
+	var start := world_to_cell(player_start)
+	var ring := [Vector2i(-1, -1), Vector2i(0, -1), Vector2i(1, -1), Vector2i(-1, 0), Vector2i(1, 0), Vector2i(-1, 1), Vector2i(0, 1), Vector2i(1, 1)]
+	var cands: Array = []
+	for y in range(1, height - 1):
+		for x in range(1, width - 1):
+			var c := Vector2i(x, y)
+			if not ch_at(c) in ".," or c.distance_to(start) < 4.0:
+				continue
+			var wall := _wall_side(c)
+			if wall == Vector2i.ZERO or wall == Vector2i(0, 1):
+				continue
+			var ok := true
+			for d in ring:
+				if not ch_at(c + d) in "#.,":
+					ok = false
+					break
+			for k in range(1, 4):
+				if ok and not ch_at(c - wall * k) in ".,":
+					ok = false
+			if ok:
+				cands.append(c)
+	var order := range(cands.size())
+	for i in range(order.size() - 1, 0, -1):
+		var j := rng.randi_range(0, i)
+		var tmp = order[i]
+		order[i] = order[j]
+		order[j] = tmp
+	var want := int(cands.size() * density)
+	var placed: Array = []
+	for i in order:
+		if placed.size() >= want:
+			break
+		var c: Vector2i = cands[i]
+		var crowded := false
+		for q in placed:
+			if maxi(absi(q.x - c.x), absi(q.y - c.y)) < 3:
+				crowded = true
+				break
+		if crowded:
+			continue
+		var roll := rng.randf() * total
+		var pick := str(weights.keys()[0])
+		for k in weights:
+			roll -= float(weights[k])
+			if roll <= 0.0:
+				pick = str(k)
+				break
+		rows[c.y] = rows[c.y].substr(0, c.x) + pick + rows[c.y].substr(c.x + 1)
+		_markers[ch_at(c)] = _markers.get(ch_at(c), []) + [c]
+		placed.append(c)
+
+
 # ------------------------------------------------------------------ construction
 
 func _build_environment() -> void:
@@ -273,6 +358,43 @@ func _build_floor() -> void:
 			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			mi.position = Vector3((cx + w * 0.5) * CELL, 0.0, (cy + h * 0.5) * CELL)
 			level_root.add_child(mi)
+
+
+func _build_motes() -> void:
+	## Dust drifting in the light (or rising data bits, theme "motes_rise") around the
+	## camera's view. One CPU particle system, emitted in world space so it trails nicely.
+	var col := _c("motes_color", "#fff2c8")
+	var pt := CPUParticles3D.new()
+	pt.amount = int(theme.get("motes", 70))
+	if pt.amount <= 0:
+		return
+	pt.lifetime = 7.0
+	pt.preprocess = 7.0
+	pt.local_coords = false
+	pt.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
+	pt.emission_box_extents = Vector3(13, 1.4, 9)
+	pt.direction = Vector3.UP
+	pt.spread = 180.0
+	pt.initial_velocity_min = 0.03
+	pt.initial_velocity_max = 0.15
+	pt.gravity = Vector3(0.04, 0.12 if theme.get("motes_rise", false) else 0.0, 0.0)
+	pt.scale_amount_min = 0.5
+	pt.scale_amount_max = 1.3
+	var q := QuadMesh.new()
+	q.size = Vector2(0.06, 0.06)
+	var m := MeshFactory.unlit(col, true)
+	m.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	m.vertex_color_use_as_albedo = true
+	q.material = m
+	pt.mesh = q
+	var ramp := Gradient.new()
+	ramp.set_color(0, Color(1, 1, 1, 0))
+	ramp.set_color(1, Color(1, 1, 1, 0))
+	ramp.add_point(0.3, Color(1, 1, 1, 0.55))
+	ramp.add_point(0.7, Color(1, 1, 1, 0.55))
+	pt.color_ramp = ramp
+	pt.position = Vector3(0, 1.6, -1.0)
+	rig.add_child(pt)
 
 
 func _static_box(size: Vector3, pos: Vector3) -> void:
@@ -385,6 +507,10 @@ func _build_cells() -> void:
 				"f": _prop_cabinet(p)
 				"c": _prop_cables(p)
 				"o": _prop_chair(p, rng.randf() * TAU)
+				"L": _prop_floor_plant(p, cor)
+				"S": _prop_shelf(p, _wall_yaw(c))
+				"V": _prop_vending(p, _wall_yaw(c), cor)
+				"J": _prop_lamp(p)
 				"R": door_cells.append(c)
 				"E":
 					var ed: Dictionary = exits_def[exit_i] if exit_i < exits_def.size() else {"to": DB.manifest.get("hub_level", "hub"), "name": "Lobby"}
@@ -530,6 +656,34 @@ func _decorate() -> void:
 		else:
 			_logo(p + Vector3(0, 0, 0.03), red)
 		placed += 1
+	# The rest of the visible wall faces get posters, clocks, whiteboards and art.
+	var hung: Array = []
+	for i in range(placed, candidates.size()):
+		var c3: Vector2i = candidates[i]
+		if hung.size() >= 16:
+			break
+		var near := false
+		for q in hung:
+			if absi(q.y - c3.y) < 1 and absi(q.x - c3.x) < 2:
+				near = true
+				break
+		if near or rng.randf() < 0.35:
+			continue
+		hung.append(c3)
+		_wall_decor(cell_center(c3) + Vector3(rng.randf_range(-0.3, 0.3), 0, CELL * 0.5 + 0.03), corruption_at(cell_center(c3)))
+	# Loose paper on the floor: a few in tidy areas, drifts of it where corruption hit.
+	for i in 90:
+		var c4 := Vector2i(rng.randi_range(1, width - 2), rng.randi_range(1, height - 2))
+		if not rows[c4.y][c4.x] in ".,":
+			continue
+		var p4 := cell_center(c4) + Vector3(rng.randf_range(-0.8, 0.8), 0, rng.randf_range(-0.8, 0.8))
+		if rng.randf() > 0.12 + corruption_at(p4) * 0.6:
+			continue
+		var sheet := MeshFactory.box(static_root, Vector3(0.3, 0.008, 0.4), p4 + Vector3(0, 0.005, 0), Color("#fbf7ee").darkened(rng.randf() * 0.08), 0.0, 0.0)
+		sheet.rotation.y = rng.randf() * TAU
+		sheet.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	if theme.has("rug"):
+		_rug(player_start, _c("rug", "#7a62c9"))
 	# Floating glitch fragments in corrupted zones (unit box scaled: no per-size mesh leak).
 	for i in 40:
 		var c2 := Vector2i(rng.randi_range(1, width - 2), rng.randi_range(1, height - 2))
@@ -548,6 +702,61 @@ func _decorate() -> void:
 		g.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		level_root.add_child(g)
 		flicker.append({"glitch": g, "t": rng.randf() * 2.0, "base": g.position})
+
+
+func _wall_decor(p: Vector3, cor: float) -> void:
+	## One flat decoration on a south-facing wall face (+z is out of the wall).
+	var ink := MeshFactory.INK
+	match rng.randi() % 4:
+		0:  # wall clock
+			var c := p + Vector3(0, 1.85, 0)
+			MeshFactory.shape(static_root, "cyl", Vector3(0.5, 0.06, 0.5), c, Color("#fbf7ee"), 0.0, Vector3(90, 0, 0))
+			MeshFactory.shape(static_root, "torus", Vector3(0.52, 0.1, 0.52), c, Color("#2b2840"), 0.0, Vector3(90, 0, 0))
+			var hand := MeshFactory.box(static_root, Vector3(0.025, 0.17, 0.01), c + Vector3(0, 0, 0.04), ink, 0.0, 0.0)
+			hand.rotation.z = rng.randf() * TAU
+			var hand2 := MeshFactory.box(static_root, Vector3(0.03, 0.12, 0.01), c + Vector3(0, 0, 0.045), ink, 0.0, 0.0)
+			hand2.rotation.z = rng.randf() * TAU
+			# rotate about the clock centre, not the hand's middle
+			for h in [hand, hand2]:
+				h.position += Basis(Vector3.BACK, h.rotation.z) * Vector3(0, h.scale.y * 0.5, 0)
+		1:  # whiteboard with marker scribbles
+			var c := p + Vector3(0, 1.45, 0)
+			MeshFactory.box(static_root, Vector3(1.5, 0.95, 0.04), c, Color("#c9cbd6"), 0.0, 0.0)
+			MeshFactory.box(static_root, Vector3(1.4, 0.85, 0.02), c + Vector3(0, 0, 0.02), Color("#fdfdf8"), 0.0, 0.0)
+			MeshFactory.box(static_root, Vector3(1.2, 0.05, 0.08), c + Vector3(0, -0.5, 0.04), Color("#c9cbd6"), 0.0, 0.0)
+			var marker_cols := [Color("#e8505b"), Color("#4d6fd8"), Color("#3aa66b")]
+			for i in rng.randi_range(3, 6):
+				var line := MeshFactory.box(static_root, Vector3(rng.randf_range(0.2, 0.6), 0.025, 0.01), c + Vector3(rng.randf_range(-0.4, 0.4), rng.randf_range(-0.3, 0.3), 0.035), marker_cols[rng.randi() % 3], 0.0, 0.0)
+				line.rotation.z = rng.randf_range(-0.5, 0.5) if rng.randf() < 0.4 else 0.0
+			if cor > 0.5:
+				var slash := MeshFactory.box(static_root, Vector3(0.5, 0.06, 0.01), c + Vector3(0, 0, 0.04), _c("corrupt_color", "#ff4f8b"), 1.5, 0.0)
+				slash.rotation.z = 0.6
+		2:  # motivational poster
+			var c := p + Vector3(0, 1.5, 0)
+			var bg := Color(["#5d7bd6", "#f29a5b", "#7fd3c0", "#b58cf0"][rng.randi() % 4])
+			if cor > 0.5:
+				bg = bg.lerp(_c("corrupt_color", "#ff4f8b"), 0.5)
+			MeshFactory.box(static_root, Vector3(0.8, 1.05, 0.03), c, Color("#2b2840"), 0.0, 0.0)
+			MeshFactory.box(static_root, Vector3(0.7, 0.95, 0.02), c + Vector3(0, 0, 0.02), bg, 0.0, 0.0)
+			MeshFactory.shape(static_root, "cone", Vector3(0.45, 0.4, 0.05), c + Vector3(0, 0.1, 0.03), bg.lightened(0.35))
+			MeshFactory.box(static_root, Vector3(0.5, 0.06, 0.01), c + Vector3(0, -0.3, 0.035), Color("#fbf7ee"), 0.0, 0.0)
+			MeshFactory.box(static_root, Vector3(0.36, 0.035, 0.01), c + Vector3(0, -0.38, 0.035), Color("#fbf7ee").darkened(0.2), 0.0, 0.0)
+		_:  # framed abstract art
+			var c := p + Vector3(0, 1.5, 0)
+			MeshFactory.box(static_root, Vector3(1.0, 0.7, 0.04), c, Color("#f3eee2"), 0.0, 0.03)
+			for i in 3:
+				var blob := MeshFactory.shape(static_root, ["sphere", "box", "cone"][i], Vector3(0.22, 0.22, 0.02), c + Vector3(-0.28 + i * 0.28, rng.randf_range(-0.1, 0.1), 0.03), Color(["#e8505b", "#ffcf4a", "#4d6fd8"][rng.randi() % 3]))
+				blob.rotation.z = rng.randf() * TAU if i == 2 else 0.0
+
+
+func _rug(p: Vector3, col: Color) -> void:
+	## Round lobby rug with a border ring and a centre emblem.
+	MeshFactory.shape(static_root, "cyl", Vector3(7.0, 0.02, 7.0), p + Vector3(0, 0.01, 0), col.darkened(0.2))
+	MeshFactory.shape(static_root, "cyl", Vector3(6.4, 0.025, 6.4), p + Vector3(0, 0.012, 0), col)
+	MeshFactory.shape(static_root, "torus", Vector3(5.2, 0.12, 5.2), p + Vector3(0, 0.02, 0), col.lightened(0.3))
+	MeshFactory.shape(static_root, "cyl", Vector3(1.6, 0.03, 1.6), p + Vector3(0, 0.016, 0), col.lightened(0.45))
+	for node in static_root.get_children().slice(-4):
+		(node as MeshInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
 
 func _logo(p: Vector3, red: bool) -> void:
@@ -667,100 +876,344 @@ func _prop_monitor(n: Node3D, pos: Vector3, cor: float, scale_f: float = 1.0) ->
 		_screen_face(n, spos, w * 0.76, h * 0.68, cor)
 
 
+const MUG_COLORS := ["#ff6b8a", "#5d7bd6", "#7fd3c0", "#ffcf4a", "#fbf7ee", "#b58cf0"]
+const STICKY_COLORS := ["#ffe66b", "#ff9fc0", "#9fe3ff", "#b6f29a"]
+
+
+func _prop_mug(n: Node3D, pos: Vector3, s: float = 1.0) -> void:
+	MeshFactory.shape(n, "mug", Vector3(0.13, 0.14, 0.11) * s, pos + Vector3(0, 0.07 * s, 0), Color(MUG_COLORS[rng.randi() % MUG_COLORS.size()]), 0.0, Vector3(0, rng.randf() * 360.0, 0))
+
+
+func _prop_papers(n: Node3D, pos: Vector3, count: int, spread: float = 0.08) -> void:
+	for i in count:
+		var sheet := MeshFactory.box(n, Vector3(0.3, 0.012, 0.4), pos + Vector3(rng.randf_range(-spread, spread), 0.006 + i * 0.013, rng.randf_range(-spread, spread)), Color("#fbf7ee").darkened(rng.randf() * 0.06), 0.0, 0.0)
+		sheet.rotation.y = rng.randf_range(-0.3, 0.3)
+
+
+func _prop_plant_small(n: Node3D, pos: Vector3) -> void:
+	## Desk succulent: a little pot with a rosette of leaves.
+	MeshFactory.shape(n, "pot", Vector3(0.2, 0.18, 0.2), pos + Vector3(0, 0.09, 0), Color("#d9805f"))
+	var green := _pp("plant", "#6fbf73")
+	for i in 5:
+		_leaf(n, pos + Vector3(0, 0.2, 0), TAU * i / 5.0 + rng.randf() * 0.4, 0.5, Vector3(0.09, 0.07, 0.2), green.lightened(rng.randf() * 0.15))
+
+
+func _leaf(n: Node3D, base: Vector3, yaw: float, pitch: float, size: Vector3, color: Color) -> void:
+	## The kit leaf points along -z (its length is size.z) and arches up; `base` is its stem.
+	var dir := Vector3(-sin(yaw) * cos(pitch), sin(pitch), -cos(yaw) * cos(pitch))
+	var leaf := MeshFactory.shape(n, "leaf", size, base + dir * size.z * 0.5, color)
+	leaf.rotation = Vector3(pitch, yaw, 0)
+
+
 func _prop_desk(p: Vector3, cor: float) -> void:
 	var n := _rot_node(p)
 	var wood := _pp("desk", "#f2cf83")
+	var leg := wood.darkened(0.3)
+	# top with a darker lip, slab leg on the left, drawer pedestal on the right
 	MeshFactory.box(n, Vector3(1.8, 0.1, 0.95), Vector3(0, 0.76, -0.1), wood)
-	MeshFactory.box(n, Vector3(0.1, 0.72, 0.85), Vector3(-0.82, 0.36, -0.1), wood.darkened(0.15))
-	MeshFactory.box(n, Vector3(0.55, 0.62, 0.85), Vector3(0.55, 0.36, -0.1), wood.darkened(0.08))
-	MeshFactory.box(n, Vector3(0.3, 0.05, 0.02), Vector3(0.55, 0.5, 0.33), wood.darkened(0.4), 0.0, 0.0)
+	MeshFactory.box(n, Vector3(1.82, 0.035, 0.97), Vector3(0, 0.7, -0.1), wood.darkened(0.2), 0.0, 0.0)
+	MeshFactory.box(n, Vector3(0.1, 0.7, 0.85), Vector3(-0.82, 0.35, -0.1), wood.darkened(0.15))
+	MeshFactory.box(n, Vector3(1.2, 0.42, 0.05), Vector3(-0.2, 0.46, -0.52), wood.darkened(0.22), 0.0, 0.0)
+	MeshFactory.box(n, Vector3(0.55, 0.66, 0.85), Vector3(0.55, 0.36, -0.1), wood.darkened(0.08))
+	for i in 3:
+		MeshFactory.box(n, Vector3(0.48, 0.18, 0.02), Vector3(0.55, 0.15 + i * 0.21, 0.33), wood.darkened(0.02), 0.0, 0.0)
+		MeshFactory.box(n, Vector3(0.16, 0.035, 0.03), Vector3(0.55, 0.2 + i * 0.21, 0.35), leg.darkened(0.3), 0.0, 0.0)
 	_prop_monitor(n, Vector3(-0.2, 1.08, -0.25), cor)
-	MeshFactory.box(n, Vector3(0.6, 0.05, 0.2), Vector3(-0.2, 0.83, 0.2), _pp("crt", "#efe4c9").darkened(0.05))
-	if rng.randf() < 0.5:
-		MeshFactory.box(n, Vector3(0.35, 0.12, 0.28), Vector3(0.45, 0.87, 0.0), Color("#fbf7ee"))
-	if rng.randf() < 0.6:
-		MeshFactory.shape(n, "cyl", Vector3(0.13, 0.15, 0.13), Vector3(0.28, 0.89, 0.18), Color(["#ff6b8a", "#5d7bd6", "#7fd3c0", "#ffcf4a"][rng.randi() % 4]))
-	if rng.randf() < 0.25:
-		MeshFactory.shape(n, "sphere", Vector3(0.3, 0.3, 0.3), Vector3(0.7, 0.98, -0.3), _pp("plant", "#6fbf73"))
-		MeshFactory.shape(n, "cyl", Vector3(0.2, 0.16, 0.2), Vector3(0.7, 0.88, -0.3), Color("#d9805f"))
+	# keyboard with key rows, and a mouse on a pad
+	var crt := _pp("crt", "#efe4c9")
+	MeshFactory.box(n, Vector3(0.6, 0.05, 0.2), Vector3(-0.2, 0.83, 0.2), crt.darkened(0.05))
+	for r in 3:
+		MeshFactory.box(n, Vector3(0.5, 0.012, 0.035), Vector3(-0.2, 0.86, 0.14 + r * 0.05), crt.darkened(0.25), 0.0, 0.0)
+	MeshFactory.box(n, Vector3(0.22, 0.01, 0.2), Vector3(0.24, 0.815, 0.2), Color("#3a3560"), 0.0, 0.0)
+	MeshFactory.shape(n, "softbox", Vector3(0.07, 0.04, 0.1), Vector3(0.24, 0.84, 0.2), crt)
+	# a little personal clutter, different on every desk
+	if rng.randf() < 0.55:
+		_prop_papers(n, Vector3(0.48, 0.81, -0.05), rng.randi_range(2, 6))
+	if rng.randf() < 0.7:
+		_prop_mug(n, Vector3(0.66, 0.81, 0.18))
+	if rng.randf() < 0.35:
+		_prop_plant_small(n, Vector3(0.68, 0.81, -0.38))
+	elif rng.randf() < 0.4:
+		# photo frame
+		var f := MeshFactory.box(n, Vector3(0.18, 0.22, 0.03), Vector3(0.68, 0.93, -0.38), Color("#2b2840"), 0.0, 0.0)
+		f.rotation = Vector3(-0.2, -0.5, 0)
+		# (kit parts are sized through node scale, so the photo can't be the frame's child)
+		var ph := MeshFactory.box(n, Vector3(0.13, 0.16, 0.01), f.position + Basis.from_euler(f.rotation) * Vector3(0, 0, 0.02), Color(STICKY_COLORS[rng.randi() % STICKY_COLORS.size()]).lightened(0.3), 0.0, 0.0)
+		ph.rotation = f.rotation
+	# sticky notes on the monitor bezel
+	for i in rng.randi_range(0, 2):
+		var note := MeshFactory.box(n, Vector3(0.09, 0.09, 0.01), Vector3(-0.2 + (0.27 if i == 0 else -0.27), 1.2 - i * 0.1, 0.01), Color(STICKY_COLORS[rng.randi() % STICKY_COLORS.size()]), 0.0, 0.0)
+		note.rotation.z = rng.randf_range(-0.25, 0.25)
 	_prop_chair(p + Vector3(0, 0, 0.85), rng.randf_range(-0.5, 0.5) + PI)
 	_static_box(Vector3(1.8, 1.0, 1.0), p + Vector3(0, 0.5, -0.1))
 
 
 func _prop_chair(p: Vector3, yaw: float) -> void:
+	## Office swivel chair: padded seat and back, armrests, gas lift and a 5-star base on casters.
 	var n := _rot_node(p, yaw)
 	var c := _pp("chair", "#5d6bb5")
-	MeshFactory.box(n, Vector3(0.52, 0.12, 0.52), Vector3(0, 0.48, 0), c)
-	MeshFactory.box(n, Vector3(0.5, 0.55, 0.12), Vector3(0, 0.8, 0.22), c)
-	MeshFactory.shape(n, "cyl", Vector3(0.07, 0.4, 0.07), Vector3(0, 0.25, 0), Color("#2b2840"))
-	MeshFactory.box(n, Vector3(0.55, 0.05, 0.09), Vector3(0, 0.04, 0), Color("#2b2840"))
-	MeshFactory.box(n, Vector3(0.09, 0.05, 0.55), Vector3(0, 0.04, 0), Color("#2b2840"))
+	var metal := Color("#2b2840")
+	MeshFactory.shape(n, "softbox", Vector3(0.54, 0.13, 0.52), Vector3(0, 0.48, 0), c)
+	MeshFactory.shape(n, "softbox", Vector3(0.5, 0.56, 0.13), Vector3(0, 0.82, 0.24), c, 0.0, Vector3(-8, 0, 0))
+	MeshFactory.box(n, Vector3(0.06, 0.2, 0.05), Vector3(0, 0.6, 0.27), metal, 0.0, 0.0)
+	for sx in [-1.0, 1.0]:
+		MeshFactory.box(n, Vector3(0.05, 0.16, 0.05), Vector3(sx * 0.28, 0.6, 0.02), metal, 0.0, 0.0)
+		MeshFactory.box(n, Vector3(0.07, 0.04, 0.26), Vector3(sx * 0.28, 0.69, 0.0), metal.lightened(0.15), 0.0, 0.0)
+	MeshFactory.shape(n, "cyl", Vector3(0.07, 0.36, 0.07), Vector3(0, 0.25, 0), metal.lightened(0.25))
+	for i in 5:
+		var a := TAU * i / 5.0
+		var spoke := MeshFactory.box(n, Vector3(0.05, 0.04, 0.3), Vector3(sin(a) * 0.14, 0.07, cos(a) * 0.14), metal, 0.0, 0.0)
+		spoke.rotation.y = a
+		MeshFactory.shape(n, "sphere", Vector3(0.07, 0.07, 0.07), Vector3(sin(a) * 0.29, 0.035, cos(a) * 0.29), metal.darkened(0.3))
 
 
 func _prop_partition(p: Vector3, horizontal: bool) -> void:
+	## Fabric cubicle panel with an aluminium cap and the odd pinned note.
 	var size := Vector3(CELL, 1.35, 0.16) if horizontal else Vector3(0.16, 1.35, CELL)
-	MeshFactory.box(static_root, size, p + Vector3(0, 0.675, 0), _pp("partition", "#9fc9bf"), 0.0, 0.03)
+	var col := _pp("partition", "#9fc9bf")
+	MeshFactory.box(static_root, size, p + Vector3(0, 0.675, 0), col, 0.0, 0.03)
+	var cap := Vector3(size.x + 0.02, 0.06, size.z + 0.04)
+	MeshFactory.box(static_root, cap, p + Vector3(0, 1.36, 0), Color("#d9dbe6"), 0.0, 0.0)
+	MeshFactory.box(static_root, Vector3(size.x + 0.01, 0.08, size.z + 0.02), p + Vector3(0, 0.04, 0), col.darkened(0.35), 0.0, 0.0)
+	# notes on the face the camera sees (+z for horizontal panels, +x for vertical)
+	for i in rng.randi_range(0, 3):
+		var along := rng.randf_range(-0.7, 0.7)
+		var y := rng.randf_range(0.7, 1.15)
+		var face := Vector3(along, y, size.z * 0.5 + 0.01) if horizontal else Vector3(size.x * 0.5 + 0.01, y, along)
+		var note_size := Vector3(0.14, 0.14, 0.01) if horizontal else Vector3(0.01, 0.14, 0.14)
+		var note := MeshFactory.box(static_root, note_size, p + face, Color(STICKY_COLORS[rng.randi() % STICKY_COLORS.size()]), 0.0, 0.0)
+		if horizontal:
+			note.rotation.z = rng.randf_range(-0.3, 0.3)
+		else:
+			note.rotation.x = rng.randf_range(-0.3, 0.3)
 	_static_box(size, p + Vector3(0, 0.675, 0))
 
 
 func _prop_table(p: Vector3) -> void:
-	MeshFactory.box(static_root, Vector3(CELL - 0.02, 0.12, CELL - 0.02), p + Vector3(0, 0.78, 0), _pp("table", "#d9805f"), 0.0, 0.0)
-	MeshFactory.shape(static_root, "cyl", Vector3(0.3, 0.73, 0.3), p + Vector3(0, 0.37, 0), Color("#2b2840"))
-	if rng.randf() < 0.3:
-		MeshFactory.box(static_root, Vector3(0.3, 0.02, 0.4), p + Vector3(rng.randf_range(-0.5, 0.5), 0.85, rng.randf_range(-0.5, 0.5)), Color("#fbf7ee"), 0.0, 0.0)
+	## Meeting-table cells join into one long table; each cell adds its own clutter.
+	var top := _pp("table", "#d9805f")
+	MeshFactory.box(static_root, Vector3(CELL - 0.02, 0.12, CELL - 0.02), p + Vector3(0, 0.78, 0), top, 0.0, 0.0)
+	MeshFactory.box(static_root, Vector3(CELL - 0.3, 0.06, CELL - 0.3), p + Vector3(0, 0.69, 0), top.darkened(0.3), 0.0, 0.0)
+	MeshFactory.shape(static_root, "cyl", Vector3(0.22, 0.66, 0.22), p + Vector3(0, 0.35, 0), Color("#2b2840"))
+	MeshFactory.shape(static_root, "cyl", Vector3(0.7, 0.05, 0.7), p + Vector3(0, 0.025, 0), Color("#2b2840"))
+	var roll := rng.randf()
+	var spot := p + Vector3(rng.randf_range(-0.45, 0.45), 0.84, rng.randf_range(-0.45, 0.45))
+	if roll < 0.25:
+		_prop_papers(static_root, spot, rng.randi_range(1, 4), 0.15)
+	elif roll < 0.45:
+		_prop_mug(static_root, spot)
+	elif roll < 0.6:
+		# open laptop
+		var lap := _rot_node(spot, rng.randf_range(-0.6, 0.6) + (PI if rng.randf() < 0.5 else 0.0))
+		MeshFactory.box(lap, Vector3(0.42, 0.025, 0.3), Vector3(0, 0.012, 0), Color("#b9bfd0"), 0.0, 0.0)
+		var lid := MeshFactory.box(lap, Vector3(0.42, 0.28, 0.02), Vector3(0, 0.14, -0.16), Color("#b9bfd0"), 0.0, 0.0)
+		lid.rotation.x = -0.3
+		var scr := MeshFactory.box(lap, Vector3(0.36, 0.22, 0.01), Vector3(0, 0.14, -0.145), _c("screen_color", "#7fd3c0"), 0.8, 0.0)
+		scr.rotation.x = -0.3
+	elif roll < 0.68:
+		_prop_plant_small(static_root, spot)
 	_static_box(Vector3(CELL, 0.9, CELL), p + Vector3(0, 0.45, 0))
 
 
 func _prop_server(p: Vector3) -> void:
-	MeshFactory.box(static_root, Vector3(1.3, 2.2, 1.2), p + Vector3(0, 1.1, 0), _pp("server", "#2f3157"), 0.0, 0.035)
+	## Rack cabinet: bezel frame, vented door, rack units with LEDs, cable tray on top.
+	var body := _pp("server", "#2f3157")
+	MeshFactory.box(static_root, Vector3(1.3, 2.2, 1.2), p + Vector3(0, 1.1, 0), body, 0.0, 0.035)
+	MeshFactory.box(static_root, Vector3(1.1, 2.0, 0.04), p + Vector3(0, 1.12, 0.6), body.darkened(0.35), 0.0, 0.0)
+	MeshFactory.box(static_root, Vector3(1.34, 0.08, 1.24), p + Vector3(0, 0.04, 0), body.darkened(0.5), 0.0, 0.0)
+	MeshFactory.box(static_root, Vector3(1.0, 0.1, 0.9), p + Vector3(0, 2.25, 0), Color("#4a4d70"), 0.0, 0.0)
+	for i in 3:
+		MeshFactory.shape(static_root, "cyl", Vector3(0.06, 1.0, 0.06), p + Vector3(-0.3 + i * 0.3, 2.33, 0), Color(["#2b2840", "#5d6bb5", "#ff4f8b"][i]), 0.0, Vector3(90, 0, 0))
 	var cols := [Color("#7dffb0"), Color("#6fd8ff"), Color("#ff4f8b"), Color("#ffcf4a")]
 	for i in 6:
+		var y := 0.35 + i * 0.3
+		MeshFactory.box(static_root, Vector3(1.0, 0.24, 0.03), p + Vector3(0, y, 0.62), body.lightened(0.12), 0.0, 0.0)
 		var led := MeshInstance3D.new()
-		led.mesh = MeshFactory.mesh_for("box", Vector3(0.8, 0.06, 0.02))
+		led.mesh = MeshFactory.mesh_for("box", Vector3(0.5, 0.05, 0.02))
 		led.material_override = MeshFactory.glow(cols[rng.randi() % cols.size()], 2.0)
-		led.position = p + Vector3(0, 0.4 + i * 0.3, 0.61)
+		led.position = p + Vector3(-0.15, y, 0.64)
 		led.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		if rng.randf() < 0.3:
 			level_root.add_child(led)  # blinking LEDs stay separate nodes
 			flicker.append({"blink": led, "t": rng.randf()})
 		else:
 			static_root.add_child(led)
+		for k in 3:
+			var dot := MeshInstance3D.new()
+			dot.mesh = MeshFactory.mesh_for("box", Vector3(0.05, 0.05, 0.02))
+			dot.material_override = MeshFactory.glow(cols[(i + k) % cols.size()], 2.5)
+			dot.position = p + Vector3(0.22 + k * 0.08, y, 0.64)
+			dot.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			static_root.add_child(dot)
 	_static_box(Vector3(1.3, 2.2, 1.2), p + Vector3(0, 1.1, 0))
 
 
 func _prop_printer(p: Vector3) -> void:
+	## Office copier: paper drawers, scanner lid, control panel, output tray with a print.
 	var c := _pp("printer", "#e9e4f2")
 	MeshFactory.box(static_root, Vector3(1.3, 0.95, 1.0), p + Vector3(0, 0.475, 0), c)
+	for i in 2:
+		MeshFactory.box(static_root, Vector3(1.1, 0.02, 0.02), p + Vector3(0, 0.3 + i * 0.25, 0.51), c.darkened(0.3), 0.0, 0.0)
+		MeshFactory.box(static_root, Vector3(0.3, 0.04, 0.03), p + Vector3(0, 0.2 + i * 0.25, 0.52), c.darkened(0.45), 0.0, 0.0)
 	MeshFactory.box(static_root, Vector3(1.2, 0.14, 0.9), p + Vector3(0, 1.0, 0), c.darkened(0.15))
-	MeshFactory.box(static_root, Vector3(0.6, 0.04, 0.35), p + Vector3(0, 0.75, 0.6), Color("#fbf7ee"), 0.0, 0.0)
-	MeshFactory.box(static_root, Vector3(0.08, 0.08, 0.02), p + Vector3(0.45, 0.85, 0.51), Color("#7dffb0"), 3.0, 0.0)
+	MeshFactory.box(static_root, Vector3(0.9, 0.02, 0.6), p + Vector3(-0.1, 1.08, 0), Color("#3a3560"), 0.0, 0.0)
+	MeshFactory.box(static_root, Vector3(0.36, 0.08, 0.22), p + Vector3(0.42, 1.0, 0.42), Color("#3a3560"), 0.0, 0.0)
+	MeshFactory.box(static_root, Vector3(0.2, 0.01, 0.1), p + Vector3(0.38, 1.045, 0.42), _c("screen_color", "#7fd3c0"), 1.2, 0.0)
+	MeshFactory.box(static_root, Vector3(0.6, 0.04, 0.35), p + Vector3(0, 0.75, 0.6), c.darkened(0.1), 0.0, 0.0)
+	_prop_papers(static_root, p + Vector3(0, 0.77, 0.62), rng.randi_range(1, 3), 0.03)
+	MeshFactory.box(static_root, Vector3(0.06, 0.06, 0.02), p + Vector3(0.55, 1.0, 0.52), Color("#7dffb0"), 3.0, 0.0)
 	_static_box(Vector3(1.3, 1.0, 1.0), p + Vector3(0, 0.5, 0))
 
 
 func _prop_cooler(p: Vector3) -> void:
+	## Water cooler: cabinet, two taps, drip tray, an upturned jug and a cup dispenser.
 	MeshFactory.box(static_root, Vector3(0.5, 1.0, 0.5), p + Vector3(0, 0.5, 0), Color("#fbf7ee"))
-	MeshFactory.shape(static_root, "cyl", Vector3(0.44, 0.55, 0.44), p + Vector3(0, 1.28, 0), Color("#7fd0f0"), 0.2)
+	MeshFactory.box(static_root, Vector3(0.3, 0.04, 0.12), p + Vector3(0, 0.62, 0.28), Color("#b9bfd0"), 0.0, 0.0)
+	MeshFactory.box(static_root, Vector3(0.06, 0.07, 0.06), p + Vector3(-0.08, 0.82, 0.27), Color("#5d7bd6"), 0.0, 0.0)
+	MeshFactory.box(static_root, Vector3(0.06, 0.07, 0.06), p + Vector3(0.08, 0.82, 0.27), Color("#ff6b6b"), 0.0, 0.0)
+	MeshFactory.shape(static_root, "jug", Vector3(0.46, 0.6, 0.46), p + Vector3(0, 1.31, 0), Color("#8fd6f2"), 0.25)
+	MeshFactory.shape(static_root, "cyl", Vector3(0.09, 0.3, 0.09), p + Vector3(0.3, 0.65, 0.05), Color("#fbf7ee"))
 	_static_box(Vector3(0.6, 1.6, 0.6), p + Vector3(0, 0.8, 0))
 
 
 func _prop_cabinet(p: Vector3) -> void:
+	## Filing cabinet: three framed drawers with handles and label slots.
 	var c := _pp("cabinet", "#a8b4e0")
 	MeshFactory.box(static_root, Vector3(0.9, 1.35, 0.8), p + Vector3(0, 0.675, 0), c)
 	for i in 3:
-		MeshFactory.box(static_root, Vector3(0.25, 0.06, 0.04), p + Vector3(0, 0.45 + i * 0.4, 0.42), c.darkened(0.45), 0.0, 0.0)
+		var y := 0.25 + i * 0.42
+		MeshFactory.box(static_root, Vector3(0.78, 0.36, 0.03), p + Vector3(0, y, 0.41), c.lightened(0.08), 0.0, 0.0)
+		MeshFactory.box(static_root, Vector3(0.25, 0.05, 0.04), p + Vector3(0, y + 0.06, 0.44), c.darkened(0.45), 0.0, 0.0)
+		MeshFactory.box(static_root, Vector3(0.16, 0.07, 0.01), p + Vector3(0, y - 0.07, 0.43), Color("#fbf7ee"), 0.0, 0.0)
+	if rng.randf() < 0.5:
+		_prop_papers(static_root, p + Vector3(rng.randf_range(-0.15, 0.15), 1.35, 0), rng.randi_range(2, 7), 0.04)
+	elif rng.randf() < 0.5:
+		_prop_plant_small(static_root, p + Vector3(0.15, 1.35, 0))
 	_static_box(Vector3(0.9, 1.35, 0.8), p + Vector3(0, 0.675, 0))
 
 
 func _prop_cables(p: Vector3) -> void:
-	var cols := [Color("#2b2840"), Color("#3a3560"), _c("corrupt_color", "#ff4f8b"), Color("#2b2840"), Color("#5d6bb5")]
-	for i in rng.randi_range(3, 6):
-		var len := rng.randf_range(1.2, 2.4)
-		var mi := MeshFactory.kit_instance("cyl", Vector3(0.09, len, 0.09))
-		mi.material_override = MeshFactory.clay(cols[rng.randi() % cols.size()], 0.0, 0.0)
-		mi.position = p + Vector3(rng.randf_range(-0.6, 0.6), 0.05, rng.randf_range(-0.6, 0.6))
-		mi.rotation = Vector3(0, rng.randf() * TAU, PI * 0.5)
+	## A tangle of curved floor cables around a power strip. The cables mostly run
+	## along one direction (like a real cable run) with a little spread.
+	var cor := corruption_at(p)
+	var cols := [Color("#2b2840"), Color("#3a3560"), Color("#5d6bb5"), Color("#e8e2f8"), Color("#ffcf4a")]
+	var hot := _c("corrupt_color", "#ff4f8b")
+	var run_yaw := rng.randf() * TAU
+	var strip := _rot_node(p + Vector3(rng.randf_range(-0.3, 0.3), 0, rng.randf_range(-0.3, 0.3)), run_yaw + rng.randf_range(-0.4, 0.4))
+	MeshFactory.box(strip, Vector3(0.62, 0.09, 0.16), Vector3(0, 0.045, 0), Color("#f3eee2"), 0.0, 0.025)
+	for i in 3:
+		MeshFactory.box(strip, Vector3(0.1, 0.06, 0.1), Vector3(-0.18 + i * 0.15, 0.11, 0), Color("#2b2840"), 0.0, 0.0)
+	MeshFactory.box(strip, Vector3(0.07, 0.03, 0.07), Vector3(0.25, 0.1, 0), Color("#ff5a4a") if cor > 0.45 else Color("#7dffb0"), 2.5, 0.0)
+	for i in rng.randi_range(3, 5):
+		var col: Color = cols[rng.randi() % cols.size()]
+		var emit := 0.0
+		if rng.randf() < cor * 0.3:
+			col = hot
+			emit = 0.8
+		var n := _rot_node(p + Vector3(rng.randf_range(-0.35, 0.35), 0, rng.randf_range(-0.35, 0.35)), run_yaw + rng.randf_range(-0.5, 0.5) + (PI if rng.randf() < 0.5 else 0.0))
+		var mi := MeshInstance3D.new()
+		mi.mesh = MeshFactory.cable_mesh(rng.randi())
+		mi.material_override = MeshFactory.clay(col, emit, 0.022)
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		static_root.add_child(mi)
+		n.add_child(mi)
+		# a plug on one end, the other end disappears under the strip or a desk
+		MeshFactory.box(n, Vector3(0.15, 0.08, 0.1), Vector3(1.34, 0.04, 0), Color("#2b2840"), 0.0, 0.022)
+		MeshFactory.box(n, Vector3(0.06, 0.02, 0.06), Vector3(1.43, 0.04, 0), Color("#c9c3d8"), 0.0, 0.0)
+
+
+func _wall_box(n: Node3D, size: Vector3, pos: Vector3, color: Color, emit: float = 0.0, outline: float = 0.03) -> MeshInstance3D:
+	## Tall wall-side props dither away when they hide the player, like walls do.
+	var mi := MeshFactory.box(n, size, pos, color, emit, outline)
+	mi.material_override = MeshFactory.clay(color, emit, MeshFactory.line_width(size, outline), true)
+	return mi
+
+
+func _yaw_box(size: Vector3, center: Vector3, yaw: float) -> void:
+	## Collision for a prop turned by a multiple of 90 degrees.
+	var s := size if absf(sin(yaw)) < 0.5 else Vector3(size.z, size.y, size.x)
+	_static_box(s, center)
+
+
+func _prop_floor_plant(p: Vector3, cor: float) -> void:
+	## Big potted office plant; in corrupted zones it droops and turns glitch-pink.
+	var n := _rot_node(p + Vector3(rng.randf_range(-0.2, 0.2), 0, rng.randf_range(-0.2, 0.2)), rng.randf() * TAU)
+	var pot_col := Color(["#d9805f", "#f3eee2", "#5d6bb5", "#2b2840"][rng.randi() % 4])
+	MeshFactory.shape(n, "pot", Vector3(0.6, 0.62, 0.6), Vector3(0, 0.31, 0), pot_col)
+	MeshFactory.shape(n, "cyl", Vector3(0.48, 0.03, 0.48), Vector3(0, 0.6, 0), Color("#5a3d2e"))
+	var green := _pp("plant", "#6fbf73").lerp(_c("corrupt_color", "#ff4f8b"), clampf(cor - 0.4, 0.0, 0.6))
+	var droop := clampf(cor - 0.4, 0.0, 0.6)
+	var count := rng.randi_range(9, 13)
+	for i in count:
+		var tall := float(i % 3 == 0)
+		var yaw := TAU * i / count + rng.randf_range(-0.25, 0.25)
+		var pitch := lerpf(0.35, 1.15, tall) + rng.randf_range(-0.15, 0.15) - droop
+		var len := rng.randf_range(0.55, 0.8) + tall * 0.25
+		_leaf(n, Vector3(0, 0.58 + tall * 0.15, 0), yaw, pitch, Vector3(0.24, 0.13, len), green.darkened(rng.randf() * 0.2).lightened(tall * 0.1))
+	_static_box(Vector3(0.7, 1.4, 0.7), p + Vector3(0, 0.7, 0))
+
+
+func _prop_shelf(p: Vector3, yaw: float) -> void:
+	## Bookshelf against the wall, filled with books, binders and the odd box or plant.
+	var n := _rot_node(p, yaw)
+	var wood := _pp("desk", "#f2cf83").darkened(0.15)
+	var z := -0.72
+	var w := 1.7
+	var h := 2.0
+	_wall_box(n, Vector3(0.08, h, 0.46), Vector3(-w * 0.5, h * 0.5, z), wood)
+	_wall_box(n, Vector3(0.08, h, 0.46), Vector3(w * 0.5, h * 0.5, z), wood)
+	_wall_box(n, Vector3(w, h, 0.04), Vector3(0, h * 0.5, z - 0.21), wood.darkened(0.25), 0.0, 0.0)
+	var book_cols := ["#e86f6f", "#5d7bd6", "#ffcf4a", "#7fd3c0", "#b58cf0", "#fbf7ee", "#f29a5b", "#3a3560"]
+	for s in 4:
+		var y := 0.06 + s * 0.48
+		_wall_box(n, Vector3(w, 0.06, 0.46), Vector3(0, y, z), wood.darkened(0.05), 0.0, 0.025)
+		if s == 3:
+			break
+		var x := -w * 0.5 + 0.08
+		while x < w * 0.5 - 0.12:
+			var bw := rng.randf_range(0.05, 0.11)
+			var bh := rng.randf_range(0.26, 0.38)
+			if rng.randf() < 0.08:
+				x += 0.15  # a gap
+				continue
+			var book := _wall_box(n, Vector3(bw, bh, 0.32), Vector3(x + bw * 0.5, y + 0.03 + bh * 0.5, z + 0.03), Color(book_cols[rng.randi() % book_cols.size()]), 0.0, 0.0)
+			if rng.randf() < 0.06:
+				book.rotation.z = 0.25
+			x += bw + 0.008
+	var top_y := 0.06 + 3 * 0.48 + 0.03
+	if rng.randf() < 0.5:
+		_prop_plant_small(n, Vector3(rng.randf_range(-0.5, 0.5), top_y, z))
+	else:
+		_wall_box(n, Vector3(0.5, 0.3, 0.36), Vector3(rng.randf_range(-0.4, 0.4), top_y + 0.15, z), Color("#c9955f"))
+	_yaw_box(Vector3(w + 0.08, h, 0.5), p + Basis(Vector3.UP, yaw) * Vector3(0, h * 0.5, z), yaw)
+
+
+func _prop_vending(p: Vector3, yaw: float, cor: float) -> void:
+	## Snack machine: lit window of snack rows, glowing header, coin panel, pickup flap.
+	var n := _rot_node(p, yaw)
+	var body := Color("#e8505b") if rng.randf() < 0.5 else Color("#4d6fd8")
+	var z := -0.55
+	_wall_box(n, Vector3(1.15, 2.1, 0.8), Vector3(0, 1.05, z), body)
+	var glass_col := Color("#1d2240").lerp(_c("corrupt_color", "#ff4f8b"), clampf(cor - 0.5, 0.0, 0.5) * 0.4)
+	MeshFactory.box(n, Vector3(0.72, 1.35, 0.02), Vector3(-0.14, 1.25, z + 0.41), glass_col, 0.0, 0.0)
+	var snack_cols := ["#ffcf4a", "#ff6b8a", "#7fd3c0", "#f29a5b", "#b58cf0", "#fbf7ee"]
+	for r in 5:
+		var rc := Color(snack_cols[rng.randi() % snack_cols.size()])
+		for k in 4:
+			MeshFactory.box(n, Vector3(0.12, 0.17, 0.03), Vector3(-0.39 + k * 0.165, 0.73 + r * 0.25, z + 0.43), rc if rng.randf() > 0.15 else rc.darkened(0.6), 0.6, 0.0)
+	MeshFactory.box(n, Vector3(1.0, 0.18, 0.03), Vector3(0, 2.0, z + 0.41), Color("#fff6dc"), 1.6, 0.0)
+	MeshFactory.box(n, Vector3(0.24, 0.5, 0.03), Vector3(0.4, 1.4, z + 0.41), Color("#2b2840"), 0.0, 0.0)
+	MeshFactory.box(n, Vector3(0.12, 0.05, 0.02), Vector3(0.4, 1.5, z + 0.43), Color("#7dffb0") if cor < 0.5 else Color("#ff5a4a"), 2.0, 0.0)
+	MeshFactory.box(n, Vector3(0.7, 0.22, 0.03), Vector3(-0.14, 0.32, z + 0.41), Color("#2b2840"), 0.0, 0.0)
+	_yaw_box(Vector3(1.15, 2.1, 0.8), p + Basis(Vector3.UP, yaw) * Vector3(0, 1.05, z), yaw)
+
+
+func _prop_lamp(p: Vector3) -> void:
+	## Floor lamp with a warm glowing shade.
+	var metal := Color("#2b2840")
+	MeshFactory.shape(static_root, "cyl", Vector3(0.4, 0.05, 0.4), p + Vector3(0, 0.025, 0), metal)
+	MeshFactory.shape(static_root, "cyl", Vector3(0.05, 1.6, 0.05), p + Vector3(0, 0.82, 0), metal.lightened(0.2))
+	MeshFactory.shape(static_root, "cyl", Vector3(0.5, 0.4, 0.5), p + Vector3(0, 1.72, 0), Color("#ffe2a8"), 1.4)
+	_static_box(Vector3(0.45, 1.9, 0.45), p + Vector3(0, 0.95, 0))
 
 
 # ------------------------------------------------------------------ shader warm-up
@@ -857,6 +1310,19 @@ func _spawn_player() -> void:
 	actors_root.add_child(player)
 	rig.target = player
 	rig.snap()
+
+
+func _spawn_coworkers() -> void:
+	## Ambient staff wandering the level ("coworkers" in the level JSON).
+	var open: Array = []
+	for y in height:
+		for x in width:
+			if rows[y][x] in ".," and cell_center(Vector2i(x, y)).distance_to(player_start) > 4.0:
+				open.append(Vector2i(x, y))
+	for i in mini(int(level.get("coworkers", 0)), open.size()):
+		var cw := Coworker.new()
+		cw.position = cell_center(open[rng.randi() % open.size()])
+		actors_root.add_child(cw)
 
 
 func _spawn_encounters() -> void:

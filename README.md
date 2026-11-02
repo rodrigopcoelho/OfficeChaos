@@ -16,7 +16,20 @@ Every part is built from a **Blender mesh kit** (`assets/meshes/kit.glb`): round
 /Applications/Blender.app/Contents/MacOS/Blender --background --python tools/blender/build_mesh_kit.py
 ```
 
-Enemy, item and prop parts in JSON use these kit shape names (`box`, `softbox`, `cyl`, `cone`, `sphere`, `gem`, `torus`, plus the character shapes `head`, `dome`, `capsule` and `blazer`).
+Enemy, item and prop parts in JSON use these kit shape names (`box`, `softbox`, `cyl`, `cone`, `sphere`, `gem`, `torus`, plus the character shapes `head`, `dome`, `capsule` and `blazer`, and the office dressing shapes `pot`, `mug`, `jug` and `leaf`).
+
+### Level dressing
+
+- **Wall props:** levels place tall props along their walls when they are built: floor plants (`L`), bookshelves (`S`), vending machines (`V`) and floor lamps (`J`). Only rooms at least 4 cells deep get them, never beside doors, glass or stations, so paths stay open. Tune them per level with `"dressing"` (weights per prop letter) and `"dressing_density"`.
+- **Coworkers:** `"coworkers": N` adds N office workers who wander the level.
+- **Rug and motes:** a theme can add a round rug at the player start (`theme.rug`) and floating dust (`theme.motes`, `motes_color`, `motes_rise`).
+- **Cables:** in corrupted zones the floor shader draws two layers of continuous cables with travelling data pulses, and `c` cells hold curved cable bundles around a power strip.
+
+Photograph every level from the game camera into `user://tour/`, which is handy for before/after art comparisons (run it windowed):
+
+```bash
+/Applications/Godot.app/Contents/MacOS/Godot --path . -- --tour
+```
 
 ### Characters
 

@@ -448,7 +448,9 @@ func _boss_anim(delta: float) -> void:
 	if _dust and _dust.emitting != charging:
 		_dust.emitting = charging
 	pivot.rotation.y = lerp_angle(pivot.rotation.y, atan2(-facing.x, -facing.z), 1.0 - exp(-(14.0 if charging else 5.0) * delta))
-	var moving := clampf(Vector2(velocity.x, velocity.z).length() / maxf(speed, 0.1), 0.0, 1.0)
+	var raw := clampf(Vector2(velocity.x, velocity.z).length() / maxf(speed, 0.1), 0.0, 1.0)
+	move_blend = lerpf(move_blend, raw, 1.0 - exp(-8.0 * delta))
+	var moving := move_blend
 	var t := anim_t * 5.0
 	if parts.has("leg_l"):
 		parts.leg_l.rotation.x = sin(t) * 0.5 * moving

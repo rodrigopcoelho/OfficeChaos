@@ -5,7 +5,11 @@
   "type": "hub",
   "safe": true,
   "enemy_level": 1.0,
+  "dressing": {"L": 5, "S": 2, "V": 2, "J": 3},
+  "dressing_density": 0.7,
+  "coworkers": 6,
   "theme": {
+    "rug": "#8a6fd6",
     "floor_color": "#f6e1b4",
     "floor_seam": "#eac48c",
     "floor_pattern": 1,

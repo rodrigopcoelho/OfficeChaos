@@ -335,3 +335,66 @@ static func sector_mesh(radius: float, arc_deg: float, inner: float = 0.0, segme
 
 static func ring_mesh(inner: float, outer: float, segments: int = 40) -> ArrayMesh:
 	return sector_mesh(outer, 360.0, inner, segments)
+
+
+const CABLE_VARIANTS := 8
+
+
+static func cable_mesh(variant: int) -> ArrayMesh:
+	## A floor cable: a round tube resting on the ground along a lazy S-curve about
+	## 2.6 m long, centred on the origin. A small fixed set of shapes (seeded by
+	## `variant`) is cached and reused with random yaw, so levels never leak meshes.
+	variant = posmod(variant, CABLE_VARIANTS)
+	var key := "cable|%d" % variant
+	if _meshes.has(key):
+		return _meshes[key]
+	var r := RandomNumberGenerator.new()
+	r.seed = 9173 + variant * 31
+	var radius := 0.035 if variant % 2 == 0 else 0.05
+	var curve := Curve3D.new()
+	var pts: Array[Vector3] = []
+	var n := 5
+	for i in n:
+		var t := float(i) / (n - 1)
+		pts.append(Vector3(lerpf(-1.3, 1.3, t), radius, r.randf_range(-0.45, 0.45) * sin(t * PI) + r.randf_range(-0.1, 0.1)))
+	if variant % 4 == 3:
+		# a slack loop in the middle
+		pts.insert(3, pts[2] + Vector3(0.25, 0, 0.35))
+		pts.insert(3, pts[2] + Vector3(0.45, 0, 0.0))
+	for i in pts.size():
+		var prev := pts[maxi(i - 1, 0)]
+		var next := pts[mini(i + 1, pts.size() - 1)]
+		var tan := (next - prev) * 0.22
+		curve.add_point(pts[i], -tan, tan)
+	curve.bake_interval = 0.06
+	var length := curve.get_baked_length()
+	var rings := maxi(int(length / 0.07), 4)
+	var sides := 8
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for i in rings + 1:
+		var d := length * float(i) / rings
+		var p := curve.sample_baked(d, true)
+		var ahead := curve.sample_baked(minf(d + 0.03, length), true) - curve.sample_baked(maxf(d - 0.03, 0.0), true)
+		ahead.y = 0.0
+		var fwd := ahead.normalized() if ahead.length() > 0.0001 else Vector3.RIGHT
+		var side := fwd.cross(Vector3.UP).normalized()
+		for s in sides + 1:
+			var a := TAU * float(s) / sides
+			var nrm := (side * cos(a) + Vector3.UP * sin(a)).normalized()
+			st.set_normal(nrm)
+			st.add_vertex(p + nrm * radius)
+	var row := sides + 1
+	for i in rings:
+		for s in sides:
+			var a0 := i * row + s
+			var b0 := (i + 1) * row + s
+			st.add_index(a0)
+			st.add_index(a0 + 1)
+			st.add_index(b0)
+			st.add_index(a0 + 1)
+			st.add_index(b0 + 1)
+			st.add_index(b0)
+	var m := st.commit()
+	_meshes[key] = m
+	return m

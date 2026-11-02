@@ -141,6 +141,55 @@ blazer = [(0.0, 0.5), (0.3, 0.5), (0.36, 0.49), (0.395, 0.465), (0.413, 0.43), (
           (0.45, 0.0), (0.475, -0.2), (0.495, -0.36), (0.5, -0.43), (0.494, -0.475), (0.47, -0.5), (0.0, -0.5)]
 finish(lathe("blazer", blazer), "blazer")
 
+# --- Office dressing kit (scripts/world/game_world.gd) -------------------------------
+
+# Tapered planter with a rolled rim and a sunken soil top.
+pot = [(0.0, 0.36), (0.4, 0.36), (0.43, 0.42), (0.5, 0.46), (0.5, 0.5), (0.46, 0.5), (0.44, 0.38),
+       (0.41, 0.1), (0.36, -0.3), (0.32, -0.46), (0.3, -0.5), (0.0, -0.5)]
+finish(lathe("pot", pot), "pot", sharp_angle=50.0)
+
+# Mug: a straight cup with a lip, plus a loop handle on +X (Blender) = +X (Godot).
+mug = lathe("mug", [(0.0, 0.3), (0.3, 0.3), (0.33, 0.5), (0.4, 0.5), (0.4, -0.45), (0.36, -0.5), (0.0, -0.5)])
+bpy.ops.mesh.primitive_torus_add(major_radius=0.2, minor_radius=0.065, major_segments=16, minor_segments=8,
+                                 location=(0.4, 0.0, 0.0), rotation=(math.radians(90), 0.0, 0.0))
+handle = bpy.context.active_object
+bpy.ops.object.select_all(action="DESELECT")
+handle.select_set(True)
+mug.select_set(True)
+bpy.context.view_layer.objects.active = mug
+bpy.ops.object.join()
+finish(mug, "mug", sharp_angle=40.0)
+
+# Water-cooler jug: a ribbed bottle, neck down (it sits upside down on the cooler).
+jug = [(0.0, 0.5), (0.36, 0.5), (0.46, 0.44), (0.5, 0.32), (0.47, 0.22), (0.5, 0.1), (0.47, -0.02),
+       (0.5, -0.14), (0.46, -0.28), (0.3, -0.38), (0.16, -0.42), (0.15, -0.5), (0.0, -0.5)]
+finish(lathe("jug", jug), "jug")
+
+# Leaf: a pointed, cupped blade lying along +Y (Blender), bent upward toward the tip.
+# Fitted to the unit box like everything else: width x 1, length y 1, depth z 1.
+bm = bmesh.new()
+rows, cols = 10, 6
+grid = []
+for i in range(rows + 1):
+    t = i / rows
+    half_w = 0.5 * math.sin(math.pi * t) ** 0.8
+    row = []
+    for j in range(cols + 1):
+        s = j / cols * 2.0 - 1.0
+        x = s * half_w
+        z = -0.5 + 0.7 * t * t + 0.25 * (1.0 - s * s) * math.sin(math.pi * t)  # arch + cup
+        row.append(bm.verts.new((x, t - 0.5, z)))
+    grid.append(row)
+for i in range(rows):
+    for j in range(cols):
+        bm.faces.new((grid[i][j], grid[i][j + 1], grid[i + 1][j + 1], grid[i + 1][j]))
+bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-5)
+leaf = mesh_object("leaf", bm)
+mod = leaf.modifiers.new("solid", "SOLIDIFY")
+mod.thickness = 0.06
+mod.offset = 0.0
+finish(leaf, "leaf")
+
 os.makedirs(os.path.dirname(OUT), exist_ok=True)
 bpy.ops.export_scene.gltf(filepath=OUT, export_format="GLB", export_apply=True, export_materials="NONE", export_yup=True)
 print("[kit] wrote", OUT)

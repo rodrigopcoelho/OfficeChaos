@@ -7,7 +7,9 @@
   "enemy_level": 1.35,
   "dressing": {"S": 4, "L": 1, "V": 1},
   "dressing_density": 0.35,
+  "sprawl": {"bays": {"servers": 6, "storage": 2, "desks": 1}},
   "theme": {
+    "sprawl_dark": "#0d0c1e",
     "motes_color": "#ff6fa8",
     "motes_rise": true,
     "motes": 90,

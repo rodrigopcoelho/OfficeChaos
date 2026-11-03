@@ -8,7 +8,9 @@
   "dressing": {"L": 5, "S": 2, "V": 2, "J": 3},
   "dressing_density": 0.7,
   "coworkers": 6,
+  "sprawl": {"bays": {"desks": 5, "meeting": 2, "lounge": 2, "storage": 1}},
   "theme": {
+    "sprawl_dark": "#2b2336",
     "rug": "#8a6fd6",
     "floor_color": "#f6e1b4",
     "floor_seam": "#eac48c",

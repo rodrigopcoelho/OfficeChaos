@@ -88,7 +88,7 @@ static func _nearest(from: Vector3, radius: float, exclude: Array):
 	var best = null
 	var best_d := radius
 	for en in GameState.world.get_tree().get_nodes_in_group("enemies"):
-		if en.dead or en in exclude:
+		if en.dead or en.dormant or en in exclude:
 			continue
 		var d: float = from.distance_to(en.global_position)
 		if d < best_d:

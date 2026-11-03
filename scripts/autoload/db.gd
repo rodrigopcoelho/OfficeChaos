@@ -93,7 +93,10 @@ func _register(target: Dictionary, entry: Variant, source: String) -> void:
 
 const INHERITED := ["class", "damage", "attack_speed", "range", "arc", "crit_chance", "crit_mult", "knockback", "stun_chance", "special", "swing", "stats"]
 const TAPE := "#d9d2bd"
-const OVERCLOCK_GLOW := "#ff9a3a"
+const PATCHED_GLOW := "#8dffa0"   # tier glow: Patched = soft green
+const OVERCLOCK_GLOW := "#ff9a3a" # Overclocked = orange
+const ROOT_GLOW := "#3ff1fe"      # Root = cyan; this exact colour flickers (toon.gdshader)
+const GLITCH_PINK := "#ff4fd8"
 
 
 func _build_items(raw: Array) -> void:
@@ -134,6 +137,8 @@ func _build_items(raw: Array) -> void:
 					if b.has(k) and not r.has(k):
 						r[k] = (b[k] as Dictionary).duplicate(true) if b[k] is Dictionary else b[k]
 				r["base_name"] = str(b.get("name", ""))
+			if str(r.get("rarity", "")) == "unique" and str(r.get("slot", "")) != "accessory":
+				r["visual"] = _root_visual(r.get("visual", {}))
 			_finish_item(r)
 			_register(items, r, pair[1])
 
@@ -165,12 +170,13 @@ func _tier_visual(vis: Dictionary, step: int, weapon: bool) -> Dictionary:
 			continue
 		var s: Array = p.get("size", [0.1, 0.1, 0.1])
 		var pos: Array = p.get("pos", [0, 0, 0])
+		var glow := PATCHED_GLOW if step == 1 else OVERCLOCK_GLOW
+		var glow_e := 1.0 if step == 1 else 2.2
 		if not weapon:
 			var front := float(pos[2]) - float(s[2]) * 0.5 - 0.012
 			extra.append({"shape": "box", "size": [float(s[0]) * 0.28, float(s[1]) * 0.3, 0.03], "pos": [float(pos[0]) + float(s[0]) * 0.18, float(pos[1]) + float(s[1]) * 0.12, front], "color": TAPE})
 			extra.append({"shape": "box", "size": [float(s[0]) * 0.2, 0.012, 0.035], "pos": [float(pos[0]) + float(s[0]) * 0.18, float(pos[1]) + float(s[1]) * 0.12, front - 0.004], "color": "#8a7a5e"})
-			if step >= 2:
-				extra.append({"shape": "box", "size": [float(s[0]) * 0.9, maxf(0.03, float(s[1]) * 0.06), 0.03], "pos": [float(pos[0]), float(pos[1]) - float(s[1]) * 0.18, front], "color": OVERCLOCK_GLOW, "emit": 2.2})
+			extra.append({"shape": "box", "size": [float(s[0]) * 0.9, maxf(0.03, float(s[1]) * 0.06), 0.03], "pos": [float(pos[0]), float(pos[1]) - float(s[1]) * 0.18, front], "color": glow, "emit": glow_e})
 			continue
 		var long := 0
 		var thin := 0
@@ -185,12 +191,60 @@ func _tier_visual(vis: Dictionary, step: int, weapon: bool) -> Dictionary:
 		var bpos := [float(pos[0]), float(pos[1]), float(pos[2])]
 		bpos[long] += float(s[long]) * 0.18
 		extra.append({"shape": "box", "size": band, "pos": bpos, "rot": p.get("rot", [0, 0, 0]), "color": TAPE})
-		if step >= 2:
-			var inlay := [float(s[0]) * 0.3, float(s[1]) * 0.3, float(s[2]) * 0.3]
-			inlay[long] = float(s[long]) * 0.8
-			inlay[thin] = float(s[thin]) * 1.25 + 0.006
-			extra.append({"shape": "box", "size": inlay, "pos": pos, "rot": p.get("rot", [0, 0, 0]), "color": OVERCLOCK_GLOW, "emit": 2.2})
+		var inlay := [float(s[0]) * 0.3, float(s[1]) * 0.3, float(s[2]) * 0.3]
+		inlay[long] = float(s[long]) * 0.8
+		inlay[thin] = float(s[thin]) * 1.25 + 0.006
+		extra.append({"shape": "box", "size": inlay, "pos": pos, "rot": p.get("rot", [0, 0, 0]), "color": glow, "emit": glow_e})
 	parts.append_array(extra)
+	out["parts"] = parts
+	return out
+
+
+func _root_visual(vis: Dictionary) -> Dictionary:
+	## Root gear: glowing cyan circuit veins along the biggest part, plus unstable
+	## glitch fragments (cyan / pink) hanging off its edges. ROOT_GLOW flickers.
+	var out: Dictionary = vis.duplicate(true)
+	var parts: Array = out.get("parts", [])
+	if parts.is_empty():
+		return out
+	var big: Dictionary = parts[0]
+	var best := 0.0
+	for p in parts:
+		var s: Array = p.get("size", [0.1, 0.1, 0.1])
+		var vol := float(s[0]) * float(s[1]) * float(s[2])
+		if vol > best:
+			best = vol
+			big = p
+	var s2: Array = big.get("size", [0.1, 0.1, 0.1])
+	var pos: Array = big.get("pos", [0, 0, 0])
+	var rot: Array = big.get("rot", [0, 0, 0])
+	var long := 0
+	var thin := 0
+	for i in 3:
+		if float(s2[i]) > float(s2[long]):
+			long = i
+		if float(s2[i]) < float(s2[thin]):
+			thin = i
+	var mid := 3 - long - thin
+	for k in [-1.0, 1.0]:
+		var vein := [0.0, 0.0, 0.0]
+		vein[long] = float(s2[long]) * 0.7
+		vein[thin] = float(s2[thin]) + 0.02
+		vein[mid] = maxf(0.012, float(s2[mid]) * 0.07)
+		var vp := [float(pos[0]), float(pos[1]), float(pos[2])]
+		vp[mid] += k * float(s2[mid]) * 0.22
+		vp[long] += k * float(s2[long]) * 0.06
+		parts.append({"shape": "box", "size": vein, "pos": vp, "rot": rot, "color": ROOT_GLOW, "emit": 2.4})
+	# glitch edges: small displaced blocks at both ends of the part
+	for k in [-1.0, 1.0]:
+		var gp := [float(pos[0]), float(pos[1]), float(pos[2])]
+		gp[long] += k * float(s2[long]) * 0.42
+		gp[mid] += k * float(s2[mid]) * 0.55
+		var gs := [0.0, 0.0, 0.0]
+		gs[long] = maxf(0.04, float(s2[long]) * 0.08)
+		gs[mid] = maxf(0.03, float(s2[mid]) * 0.18)
+		gs[thin] = float(s2[thin]) + 0.01
+		parts.append({"shape": "box", "size": gs, "pos": gp, "rot": rot, "color": ROOT_GLOW if k < 0 else GLITCH_PINK, "emit": 2.0})
 	out["parts"] = parts
 	return out
 

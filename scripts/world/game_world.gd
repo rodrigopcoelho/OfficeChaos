@@ -34,6 +34,8 @@ var env: Environment
 var sun: DirectionalLight3D
 var level_root: Node3D
 var static_root: Node3D
+var sprawl_root: Node3D   # the inaccessible office beyond the walls (OfficeSprawl)
+var screens: Array = []   # [world position, facing] of every lit PC screen: enemies emerge from them
 var actors_root: Node3D
 var pickups_root: Node3D
 var fx_root: FxPool
@@ -69,6 +71,7 @@ func _ready() -> void:
 	rng.randomize()
 	level_root = _node("Level")
 	static_root = _node("Static")
+	sprawl_root = _node("Sprawl")
 	actors_root = _node("Actors")
 	pickups_root = _node("Pickups")
 	fx_root = FxPool.new()
@@ -83,6 +86,8 @@ func _ready() -> void:
 	_build_lights()
 	_build_astar()
 	_decorate()
+	if not level.get("no_sprawl", false):
+		OfficeSprawl.new().build(self)
 	_batch_static()
 	rig = CameraRig.new()
 	add_child(rig)
@@ -280,16 +285,18 @@ func _build_environment() -> void:
 	var we := WorldEnvironment.new()
 	env = Environment.new()
 	env.background_mode = Environment.BG_COLOR
-	env.background_color = _c("bg_color", "#0b0b10")
+	# beyond the out-of-bounds office everything fades into this colour
+	env.background_color = _c("sprawl_dark", "#1b1826")
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.ambient_light_color = _c("ambient_color", "#fff6e0")
 	env.ambient_light_energy = float(theme.get("ambient_energy", 0.5))
 	env.tonemap_mode = Environment.TONE_MAPPER_LINEAR
 	env.tonemap_exposure = float(theme.get("exposure", 1.0))
+	# soft glow only on emissive data (the art direction asks for no heavy bloom)
 	env.glow_enabled = true
-	env.glow_intensity = 0.5
-	env.glow_bloom = 0.04
-	env.glow_hdr_threshold = 1.0
+	env.glow_intensity = 0.32
+	env.glow_bloom = 0.0
+	env.glow_hdr_threshold = 1.2
 	env.glow_blend_mode = Environment.GLOW_BLEND_MODE_SCREEN
 	env.ssao_enabled = true  # Forward+ only; ignored by the Compatibility renderer
 	env.ssao_radius = 1.2
@@ -342,6 +349,19 @@ func _build_floor() -> void:
 	mat.set_shader_parameter("corrupt_start", float(theme.get("corrupt_start", 999.0)))
 	mat.set_shader_parameter("corrupt_end", float(theme.get("corrupt_end", 1000.0)))
 	mat.set_shader_parameter("corrupt_base", float(theme.get("corrupt_base", 0.0)))
+	mat.set_shader_parameter("play_rect", Vector4(0, 0, width * CELL, height * CELL))
+	mat.set_shader_parameter("outside_dark", _c("sprawl_dark", "#1b1826"))
+	if not level.get("no_sprawl", false):
+		# the floor keeps going under the out-of-bounds office (just below the level's
+		# own floor chunks, which cover it inside the walls)
+		var far := MeshInstance3D.new()
+		var fp := PlaneMesh.new()
+		fp.size = Vector2(width * CELL + 160.0, height * CELL + 160.0)
+		far.mesh = fp
+		far.material_override = mat
+		far.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		far.position = Vector3(width * CELL * 0.5, -0.01, height * CELL * 0.5)
+		level_root.add_child(far)
 	var planes: Dictionary = {}
 	for cy in range(0, height, CHUNK_CELLS):
 		for cx in range(0, width, CHUNK_CELLS):
@@ -423,16 +443,15 @@ func _build_walls() -> void:
 	for y in height:
 		var x := 0
 		while x < width:
-			if rows[y][x] in WALLISH:
+			# Only wall cells that touch a room are built (one cell thick); cells buried
+			# in a wall mass are left open for the dim, inaccessible office (OfficeSprawl).
+			if rows[y][x] in WALLISH and not _is_border_run(y, x, x + 1):
 				var x0 := x
-				while x < width and rows[y][x] in WALLISH:
+				while x < width and rows[y][x] in WALLISH and not _is_border_run(y, x, x + 1):
 					x += 1
 				var run := x - x0
 				var size := Vector3(run * CELL, wh, CELL)
 				var pos := Vector3((x0 + run * 0.5) * CELL, wh * 0.5, (y + 0.5) * CELL)
-				if _is_border_run(y, x0, x):
-					_static_box(size, pos)
-					continue
 				var mi := MeshInstance3D.new()
 				mi.mesh = MeshFactory.mesh_for("box", size)
 				mi.material_override = wall_mat
@@ -774,11 +793,23 @@ func _batch_static() -> void:
 	## Toon parts share one vertex-coloured material; other materials (glow LEDs, glass)
 	## are merged per material.
 	var t0 := Time.get_ticks_usec()
-	var chunk := CELL * CHUNK_CELLS
+	var batched := _node("Batched")
+	var counts := _batch_root(static_root, CELL * CHUNK_CELLS, true, batched)
+	# The out-of-bounds office is big, distant and unlit: larger chunks, no shadows.
+	var counts2 := _batch_root(sprawl_root, CELL * 12, false, batched)
+	remove_child(static_root)
+	static_root.queue_free()
+	remove_child(sprawl_root)
+	sprawl_root.queue_free()
+	build_stats = {"parts": counts.x + counts2.x, "batches": counts.y + counts2.y, "ms": (Time.get_ticks_usec() - t0) / 1000.0}
+
+
+func _batch_root(src: Node3D, chunk: float, shadows: bool, batched: Node3D) -> Vector2i:
+	## Returns (parts merged, batches made).
 	var toon: Dictionary = {}
 	var plain: Dictionary = {}
 	var parts := 0
-	for node in static_root.find_children("*", "MeshInstance3D", true, false):
+	for node in src.find_children("*", "MeshInstance3D", true, false):
 		var mi := node as MeshInstance3D
 		var p := mi.global_position
 		var ck := Vector2i(floori(p.x / chunk), floori(p.z / chunk))
@@ -787,7 +818,7 @@ func _batch_static() -> void:
 			var info := MeshFactory.material_info(mi.material_override)
 			var key := "%d,%d|%s" % [ck.x, ck.y, info.fade]
 			if not toon.has(key):
-				toon[key] = {"batch": MeshBatcher.new(), "fade": bool(info.fade), "shadow": true}
+				toon[key] = {"batch": MeshBatcher.new(), "fade": bool(info.fade), "shadow": shadows}
 			(toon[key].batch as MeshBatcher).add(mi, mi.global_transform)
 		elif mi.mesh != null and mi.mesh.get_surface_count() == 1:
 			var mat := mi.material_override
@@ -795,7 +826,6 @@ func _batch_static() -> void:
 			if not plain.has(key2):
 				plain[key2] = {"batch": MeshBatcher.new(), "material": mat, "shadow": mi.cast_shadow}
 			(plain[key2].batch as MeshBatcher).add_raw(mi.mesh, mi.global_transform)
-	var batched := _node("Batched")
 	for k in toon:
 		var e: Dictionary = toon[k]
 		batched.add_child((e.batch as MeshBatcher).instance(bool(e.fade), bool(e.shadow)))
@@ -804,11 +834,9 @@ func _batch_static() -> void:
 		var mi2 := MeshInstance3D.new()
 		mi2.mesh = (e2.batch as MeshBatcher).commit()
 		mi2.material_override = e2.material
-		mi2.cast_shadow = e2.shadow
+		mi2.cast_shadow = e2.shadow if shadows else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		batched.add_child(mi2)
-	remove_child(static_root)
-	static_root.queue_free()
-	build_stats = {"parts": parts, "batches": toon.size() + plain.size(), "ms": (Time.get_ticks_usec() - t0) / 1000.0}
+	return Vector2i(parts, toon.size() + plain.size())
 
 
 # ------------------------------------------------------------------ props
@@ -874,6 +902,7 @@ func _prop_monitor(n: Node3D, pos: Vector3, cor: float, scale_f: float = 1.0) ->
 	MeshFactory.box(n, Vector3(w * 0.76, h * 0.68, 0.02), spos, screen_col if on else Color("#2a2836"), 0.9 if on else 0.0, 0.0)
 	if on:
 		_screen_face(n, spos, w * 0.76, h * 0.68, cor)
+		screens.append({"pos": n.to_global(spos), "facing": (n.global_basis * Vector3.BACK).normalized(), "used": 0})
 
 
 const MUG_COLORS := ["#ff6b8a", "#5d7bd6", "#7fd3c0", "#ffcf4a", "#fbf7ee", "#b58cf0"]
@@ -1045,6 +1074,8 @@ func _prop_server(p: Vector3) -> void:
 			dot.position = p + Vector3(0.22 + k * 0.08, y, 0.64)
 			dot.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			static_root.add_child(dot)
+	# the rack's status panel works as a screen viruses can climb out of
+	screens.append({"pos": p + Vector3(0, 1.2, 0.66), "facing": Vector3.BACK, "used": 0})
 	_static_box(Vector3(1.3, 2.2, 1.2), p + Vector3(0, 1.1, 0))
 
 
@@ -1241,6 +1272,8 @@ func _start_warm_up() -> void:
 	Fx.text(c + Vector3(0, 2, 0), "0123456789!+GSTUNEDOPRMAIXLBCKHVWY-%", Color.WHITE)
 	Fx.damage_number(c + Vector3(1, 2, 0), 12.0, true)
 	Fx.ring(c, 1.0, Color.WHITE)
+	Fx.digitize(c, 1.5, Color.WHITE)
+	Fx.pixel_hit(c + Vector3(0, 1, 0), Color.WHITE, true)
 	Fx.slash(c, Vector3.FORWARD, 2.0, 110.0, Color.WHITE)
 	Fx.lightning(c + Vector3(0, 1, 0), c + Vector3(2, 1, 0), Color.WHITE)
 	Fx.telegraph_circle(c, 1.0, 0.5)
@@ -1334,7 +1367,7 @@ func _spawn_encounters() -> void:
 			var spread := float(e.get("spread", 3.0))
 			for pair in e.get("enemies", []):
 				for i in int(pair[1]):
-					spawn_enemy_near(str(pair[0]), cell_center(c), spread, GameState.clearance(), lm)
+					spawn_enemy_near(str(pair[0]), cell_center(c), spread, GameState.clearance(), lm, false, true)
 
 
 func _spawn_boss() -> void:
@@ -1350,7 +1383,19 @@ func _spawn_boss() -> void:
 	actors_root.add_child(boss)
 
 
-func spawn_enemy_near(id: String, center: Vector3, spread: float, tier: int, level_mult: float = -1.0, spawn_fx: bool = false) -> Enemy:
+func _screen_near(pos: Vector3, max_dist: float = 9.0) -> Dictionary:
+	## The closest lit screen with room left (3 viruses per screen), or {}.
+	var best: Dictionary = {}
+	var best_d := max_dist
+	for s in screens:
+		var d: float = Vector2(s.pos.x - pos.x, s.pos.z - pos.z).length()
+		if d < best_d and int(s.used) < 3:
+			best_d = d
+			best = s
+	return best
+
+
+func spawn_enemy_near(id: String, center: Vector3, spread: float, tier: int, level_mult: float = -1.0, spawn_fx: bool = false, from_screen: bool = false) -> Enemy:
 	if not DB.enemies.has(id):
 		push_warning("[World] Unknown enemy id " + id)
 		return null
@@ -1366,6 +1411,12 @@ func spawn_enemy_near(id: String, center: Vector3, spread: float, tier: int, lev
 	var cc: Dictionary = DB.progression.get("corrupted", {})
 	if not level.get("safe", false) and rng.randf() < float(cc.get("base_chance", 0.06)) + float(cc.get("per_corruption", 0.22)) * corruption_at(pos):
 		e.make_corrupted()
+	if from_screen and not menu_mode:
+		# encounter viruses wait inside a nearby PC screen and climb out when you come
+		var s := _screen_near(pos)
+		if not s.is_empty():
+			s.used = int(s.used) + 1
+			e.hide_in_screen(s.pos, s.facing)
 	actors_root.add_child(e)
 	if spawn_fx and not menu_mode:
 		Fx.burst(pos + Vector3(0, 1, 0), MeshFactory.col(DB.enemies[id].get("color", "#ff4040")), 16, 5.0, 0.12, 0.5)

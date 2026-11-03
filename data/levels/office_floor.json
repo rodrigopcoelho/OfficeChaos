@@ -8,6 +8,7 @@
   "dressing": {"L": 4, "S": 3, "V": 1, "J": 1},
   "dressing_density": 0.4,
   "theme": {
+    "sprawl_dark": "#1e231f",
     "floor_color": "#cad59c",
     "floor_seam": "#a7b97a",
     "floor_pattern": 0,

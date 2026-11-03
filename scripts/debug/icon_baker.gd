@@ -34,7 +34,8 @@ func _ready() -> void:
 		if raw == null or raw.is_empty():
 			push_warning("[ICONS] could not render " + str(id))
 			continue
-		var art := stylize(raw)
+		var glow := MeshFactory.col(ItemUtil.rarity_info(str(DB.items[id].get("rarity", "common"))).get("glow", "#00000000"), Color(0, 0, 0, 0))
+		var art := stylize(raw, glow)
 		art.save_png(ProjectSettings.globalize_path(IconCache.ICON_DIR + str(id) + ".png"))
 		var thumb := art.duplicate() as Image
 		thumb.resize(SHEET_CELL - 8, SHEET_CELL - 8, Image.INTERPOLATE_LANCZOS)
@@ -50,8 +51,9 @@ func _ready() -> void:
 	get_tree().quit()
 
 
-static func stylize(src: Image) -> Image:
-	## Silhouette -> dilated ink outline + offset soft shadow, with the render on top.
+static func stylize(src: Image, glow: Color = Color(0, 0, 0, 0)) -> Image:
+	## Silhouette -> tier glow halo (Patched green / Overclocked orange / Root cyan,
+	## none for Stock) + dilated ink outline + offset soft shadow, render on top.
 	var img := src.duplicate() as Image
 	img.convert(Image.FORMAT_RGBA8)
 	var w := img.get_width()
@@ -64,11 +66,22 @@ static func stylize(src: Image) -> Image:
 	var grown := _dilate(mask, w, h, OUTLINE_PX)
 	var out := Image.create(w, h, false, Image.FORMAT_RGBA8)
 	out.fill(Color(0, 0, 0, 0))
+	if glow.a > 0.0:
+		# two soft rings of glow outside the ink line
+		var outer := _dilate(grown, w, h, 7)
+		var inner := _dilate(grown, w, h, 3)
+		for y2 in h:
+			for x2 in w:
+				var i2 := y2 * w + x2
+				if inner[i2] == 1:
+					out.set_pixel(x2, y2, Color(glow.r, glow.g, glow.b, 0.75))
+				elif outer[i2] == 1:
+					out.set_pixel(x2, y2, Color(glow.r, glow.g, glow.b, 0.35))
 	for y in h:
 		for x in w:
 			var sx := x - SHADOW_OFFSET.x
 			var sy := y - SHADOW_OFFSET.y
-			if sx >= 0 and sy >= 0 and grown[sy * w + sx] == 1:
+			if sx >= 0 and sy >= 0 and grown[sy * w + sx] == 1 and out.get_pixel(x, y).a == 0.0:
 				out.set_pixel(x, y, Color(0.12, 0.09, 0.16, 0.22))
 	for y in h:
 		for x in w:

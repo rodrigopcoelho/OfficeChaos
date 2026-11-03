@@ -427,6 +427,7 @@ func _death_sequence() -> void:
 	Fx.burst(global_position + Vector3(0, 2.5, 0), Color.WHITE, 60, 12.0, 0.2, 1.0, -6.0)
 	Fx.burst(global_position + Vector3(0, 2.5, 0), col, 60, 9.0, 0.25, 1.2, -6.0)
 	Fx.ring(global_position, 9.0, col, 0.8, 0.3)
+	Fx.digitize(global_position, height, col, 3.0)
 	if parts.has("head"):
 		var head: Node3D = parts.head
 		var tw := create_tween()

@@ -328,7 +328,7 @@ func _assist_pick(ref: Vector3) -> Enemy:
 	var best_score := INF
 	for n in get_tree().get_nodes_in_group("enemies"):
 		var e := n as Enemy
-		if e == null or e.dead:
+		if e == null or e.dead or e.dormant:
 			continue
 		var to := e.global_position - global_position
 		to.y = 0

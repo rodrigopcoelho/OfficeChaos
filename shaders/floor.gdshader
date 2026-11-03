@@ -18,6 +18,11 @@ uniform vec3 corrupt_origin = vec3(0.0);
 uniform float corrupt_start = 999.0;
 uniform float corrupt_end = 1000.0;
 uniform float corrupt_base = 0.0;
+// The playable rectangle (x/z min, x/z max). Outside it the floor keeps going as the
+// inaccessible office and fades into `outside_dark` over `outside_fade` metres.
+uniform vec4 play_rect = vec4(-1000.0, -1000.0, 1000.0, 1000.0);
+uniform vec4 outside_dark : source_color = vec4(0.1, 0.09, 0.14, 1.0);
+uniform float outside_fade = 30.0;
 
 varying vec3 wp;
 
@@ -116,9 +121,14 @@ void fragment() {
 	float glitch_tile = step(1.0 - cor * 0.04, hash2(id + vec2(floor(TIME * 3.0), 0.0)));
 	float scan = step(0.5, fract(wp.z * 6.0 + TIME * 2.0));
 	c = mix(c, corrupt_color.rgb, glitch_tile * (0.25 + 0.3 * scan) * smoothstep(0.0, 0.08, edge));
+	// beyond the walls: the same office, dimmer the further it is from the play area
+	vec2 outside = max(max(play_rect.xy - wp.xz, wp.xz - play_rect.zw), vec2(0.0));
+	float away = smoothstep(0.0, outside_fade, length(outside));
+	float dim = step(0.001, length(outside)) * (0.5 + 0.45 * away);
+	c = mix(c, outside_dark.rgb, dim);
 	ALBEDO = c;
 	ROUGHNESS = 1.0;
-	EMISSION = glow + corrupt_color.rgb * glitch_tile * 0.3 * scan;
+	EMISSION = (glow + corrupt_color.rgb * glitch_tile * 0.3 * scan) * (1.0 - away);
 }
 
 void light() {

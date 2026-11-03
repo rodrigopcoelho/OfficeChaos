@@ -59,6 +59,13 @@ var float_h := 0.0
 var aura_ring: MeshInstance3D
 var move_blend := 0.0  # smoothed walk amount (knockback no longer jerks the legs)
 var corrupted := false  # a stronger variant that drops Corrupted Gold (make_corrupted)
+## Enemies placed near a PC screen wait inside it (dormant: hidden, untargetable)
+## and climb out when the player comes close or a neighbour raises the alarm.
+var dormant := false
+var emerge_from := Vector3.ZERO
+var emerge_facing := Vector3.BACK
+var _emerge_delay := -1.0
+var _emerging := 0.0
 var _corrupt_fx: Node3D
 var _hit_tween: Tween
 
@@ -152,6 +159,9 @@ func _ready() -> void:
 	if corrupted:
 		_build_corruption_fx()
 	_build_hp_bar()
+	if dormant:
+		pivot.visible = false
+		collision_layer = 0
 	if def.has("aura"):
 		aura_ring = MeshInstance3D.new()
 		var ar := float(def.aura.get("radius", 8.0))
@@ -226,6 +236,12 @@ func _physics_process(delta: float) -> void:
 	if dead:
 		return
 	anim_t += delta
+	if dormant:
+		_tick_dormant(delta)
+		return
+	if _emerging > 0.0:
+		_emerging -= delta
+		return
 	_tick_status(delta)
 	if dead:
 		return
@@ -280,6 +296,58 @@ func _physics_process(delta: float) -> void:
 		facing = to_p.normalized()
 	_move(desired, delta)
 	_animate(delta, desired)
+
+
+func hide_in_screen(screen_pos: Vector3, screen_facing: Vector3) -> void:
+	## Call before adding to the tree: the enemy waits inside this PC screen.
+	dormant = true
+	emerge_from = screen_pos
+	emerge_facing = screen_facing
+
+
+func _tick_dormant(delta: float) -> void:
+	if _emerge_delay >= 0.0:
+		_emerge_delay -= delta
+		if _emerge_delay < 0.0:
+			_emerge()
+		return
+	var p = GameState.player
+	var near: bool = p != null and is_instance_valid(p) and not p.dead and global_position.distance_to(p.global_position) < detect_range * 0.8
+	if near or aggro:
+		# a few enemies sharing a screen come out one after another
+		_emerge_delay = randf_range(0.0, 0.5)
+
+
+func _emerge() -> void:
+	## Climbs out of the screen: a glitchy flash on the monitor, then the body pops
+	## out small, arcs down to the floor and lands at full size.
+	dormant = false
+	_emerging = 0.75
+	pivot.visible = true
+	collision_layer = Layers.ENEMIES
+	# (the enemy body itself never rotates, so a world offset is the pivot's offset)
+	var from := emerge_from - global_position
+	from.y -= height * 0.3
+	pivot.position = from
+	pivot.scale = Vector3.ONE * 0.12
+	facing = emerge_facing
+	pivot.rotation.y = atan2(-emerge_facing.x, -emerge_facing.z)
+	Fx.binary(emerge_from, Fx.DATA_CYAN, 14, 0.25, 1.4, 0.6)
+	Fx.burst(emerge_from, Fx.DATA_CYAN, 12, 4.0, 0.14, 0.4, -4.0, 2.0)
+	Fx.scan_ring(emerge_from - Vector3(0, 0.3, 0), 0.45, 0.6, Fx.DATA_GREEN, 0.3)
+	Fx.flash(visual, Color("#7ff8ff"), 0.6)
+	Audio.play("teleport", -10.0, 0.15)
+	var tw := create_tween()
+	tw.set_parallel(true)
+	tw.tween_property(pivot, "scale", Vector3.ONE, 0.55).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_method(func(k: float) -> void:
+		# out of the screen and down in a hop
+		pivot.position = from.lerp(Vector3.ZERO, k) + Vector3(0, sin(k * PI) * 0.8, 0), 0.0, 1.0, 0.55).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+	tw.chain().tween_callback(func() -> void:
+		pivot.position = Vector3.ZERO
+		Fx.ring(global_position, 1.2, Fx.DATA_CYAN, 0.3)
+		Fx.burst(global_position + Vector3(0, 0.2, 0), Color("#d6ccae"), 8, 3.0, 0.12, 0.35)
+		alert())
 
 
 func alert() -> void:
@@ -571,13 +639,14 @@ func _animate(delta: float, desired: Vector3) -> void:
 # ------------------------------------------------------------------ damage
 
 func take_hit(dmg: float, crit: bool, from_pos: Vector3, knockback: float) -> bool:
-	if dead:
+	if dead or dormant or _emerging > 0.0:
 		return false
 	var final := dmg * (1.0 - armor)
 	hp -= final
 	alert()
 	Fx.damage_number(global_position + Vector3(randf_range(-0.3, 0.3), height + 0.2, 0), final, crit)
-	Fx.flash(visual, Color(1, 1, 1), 0.08)
+	# cyan scan-line flash (data being hit), white on crits
+	Fx.flash(visual, Color("#7ff8ff") if not crit else Color(1, 1, 1), 0.08)
 	# squash-and-recover punch (on the pivot: the visual's scale belongs to boss/death tweens)
 	if _hit_tween:
 		_hit_tween.kill()
@@ -585,7 +654,7 @@ func take_hit(dmg: float, crit: bool, from_pos: Vector3, knockback: float) -> bo
 	pivot.scale = Vector3(1.0 + punch * 0.8, 1.0 - punch, 1.0 + punch * 0.8)
 	_hit_tween = create_tween()
 	_hit_tween.tween_property(pivot, "scale", Vector3.ONE, 0.22).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	Fx.burst(global_position + Vector3(0, height * 0.55, 0), MeshFactory.col(def.get("color", "#ff4040")), 5 if not crit else 10, 4.0, 0.09, 0.35)
+	Fx.pixel_hit(global_position + Vector3(0, height * 0.55, 0), MeshFactory.col(def.get("color", "#ff4040")), crit)
 	Audio.play("crit" if crit else "hit", -2.0)
 	var dir := global_position - from_pos
 	dir.y = 0
@@ -640,11 +709,14 @@ func die(by_player: bool = true) -> void:
 			_corrupt_fx.visible = false
 	var c := MeshFactory.col(def.get("color", "#ff4040"))
 	Audio.play("enemy_die", -2.0)
-	Fx.burst(global_position + Vector3(0, height * 0.5, 0), c, 22, 6.0, 0.15, 0.7)
-	Fx.burst(global_position + Vector3(0, height * 0.5, 0), Color(0.9, 0.9, 0.85), 10, 4.0, 0.2, 0.6)
+	# digitize: scan rings sweep up while the body flickers, thins and dissolves into
+	# rising 0s and 1s
+	Fx.digitize(global_position, height, c, 1.3 if corrupted else 1.0)
+	Fx.flash(visual, Color("#7ff8ff"), 0.5)
 	var tw := create_tween()
-	tw.tween_property(visual, "scale", visual.scale * Vector3(1.4, 0.6, 1.4), 0.08)
-	tw.tween_property(visual, "position:x", 0.15, 0.04)
-	tw.tween_property(visual, "position:x", -0.15, 0.04)
-	tw.tween_property(visual, "scale", Vector3(visual.scale.x * 1.6, 0.02, visual.scale.z * 1.6), 0.18)
+	tw.tween_property(visual, "scale", visual.scale * Vector3(1.25, 0.75, 1.25), 0.07).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tw.tween_property(visual, "position:x", 0.12, 0.04)
+	tw.tween_property(visual, "position:x", -0.12, 0.04)
+	tw.tween_property(visual, "position:x", 0.0, 0.03)
+	tw.parallel().tween_property(visual, "scale", Vector3(visual.scale.x * 0.15, visual.scale.y * 1.4, visual.scale.z * 0.15), 0.3).set_trans(Tween.TRANS_EXPO).set_ease(Tween.EASE_IN)
 	tw.tween_callback(queue_free)

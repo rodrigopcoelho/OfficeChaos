@@ -69,6 +69,78 @@ static func burst(pos: Vector3, color: Color, amount: int = 16, speed: float = 5
 	p.restart()
 
 
+# ------------------------------------------------------------------ digitizing
+
+const DATA_CYAN := Color("#40f2ff")
+const DATA_GREEN := Color("#7dff6a")
+
+
+static func _new_binary(digit: String) -> CPUParticles3D:
+	var p := _new_particles()
+	p.explosiveness = 0.55
+	p.spread = 25.0
+	p.angular_velocity_min = 0.0
+	p.angular_velocity_max = 0.0
+	p.mesh = MeshFactory.ring_mesh(0.07, 0.12, 10) if digit == "0" else MeshFactory.mesh_for("box", Vector3(0.05, 0.02, 0.2))
+	return p
+
+
+static func binary(pos: Vector3, color: Color, amount: int = 14, spread_xz: float = 0.5, rise: float = 2.5, life: float = 0.9) -> void:
+	## A puff of 0s (flat rings) and 1s (flat bars) floating upward.
+	var pool := root()
+	if pool == null:
+		return
+	for digit in ["0", "1"]:
+		var p := pool.take("bin" + digit, func() -> Node: return Fx._new_binary(digit), life + 0.2) as CPUParticles3D
+		p.amount = maxi(1, amount / 2)
+		p.lifetime = life
+		p.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
+		p.emission_box_extents = Vector3(spread_xz, 0.4, spread_xz)
+		p.initial_velocity_min = rise * 0.5
+		p.initial_velocity_max = rise
+		p.gravity = Vector3.ZERO
+		p.material_override = MeshFactory.unlit_shared(Color(color.r, color.g, color.b, 0.9), true)
+		p.global_position = pos
+		p.restart()
+
+
+static func scan_ring(pos: Vector3, radius: float, height: float, color: Color, duration: float = 0.45) -> void:
+	## A horizontal ring that sweeps up through a body, like a scanner pass.
+	var pool := root()
+	if pool == null:
+		return
+	var mi := pool.take("ring", func() -> Node: return Fx._new_ring(), duration) as MeshInstance3D
+	mi.mesh = MeshFactory.ring_mesh(0.86, 1.0, 40)
+	var mat := mi.material_override as StandardMaterial3D
+	mat.albedo_color = Color(color.r, color.g, color.b, 0.9)
+	mi.global_position = pos + Vector3(0, 0.05, 0)
+	mi.scale = Vector3.ONE * radius
+	var tw := mi.create_tween()
+	tw.set_parallel(true)
+	tw.tween_property(mi, "global_position:y", pos.y + height, duration).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	tw.tween_property(mat, "albedo_color:a", 0.0, duration * 0.4).set_delay(duration * 0.6)
+	tw.chain().tween_callback(mi.hide)
+	_track(mi, tw)
+
+
+static func digitize(pos: Vector3, height: float, color: Color, scale_f: float = 1.0) -> void:
+	## Something breaking down into data: scan rings sweep up, the body sheds chunky
+	## pixel fragments and dissolves into rising 0s and 1s.
+	scan_ring(pos, 0.9 * scale_f, height, DATA_CYAN, 0.45)
+	scan_ring(pos, 1.2 * scale_f, height * 0.6, DATA_GREEN, 0.6)
+	binary(pos + Vector3(0, height * 0.4, 0), DATA_CYAN, int(18 * scale_f), 0.45 * scale_f, 3.0, 1.0)
+	binary(pos + Vector3(0, height * 0.7, 0), DATA_GREEN, int(10 * scale_f), 0.35 * scale_f, 2.2, 0.8)
+	burst(pos + Vector3(0, height * 0.5, 0), color, int(14 * scale_f), 4.0, 0.2, 0.6, -6.0, 1.5)
+
+
+static func pixel_hit(pos: Vector3, color: Color, crit: bool) -> void:
+	## Chunky pixel burst for a landed hit (crits add a puff of binary).
+	burst(pos, color, 6 if not crit else 11, 4.5, 0.17 if not crit else 0.22, 0.32, -6.0, 1.6)
+	burst(pos, Color.WHITE, 3 if not crit else 6, 3.5, 0.12, 0.25, -4.0, 2.0)
+	if crit:
+		binary(pos, DATA_CYAN, 8, 0.3, 2.0, 0.5)
+
+
 # ------------------------------------------------------------------ floating text
 
 static func _new_label() -> Label3D:

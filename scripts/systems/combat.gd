@@ -43,7 +43,7 @@ static func enemies_in_arc(origin: Vector3, dir: Vector3, reach: float, arc_deg:
 	var out: Array = []
 	var half := deg_to_rad(arc_deg) * 0.5
 	for e in GameState.world.get_tree().get_nodes_in_group("enemies"):
-		if e.dead:
+		if e.dead or e.dormant:
 			continue
 		var to: Vector3 = e.global_position - origin
 		to.y = 0
@@ -59,7 +59,7 @@ static func enemies_in_arc(origin: Vector3, dir: Vector3, reach: float, arc_deg:
 static func enemies_in_radius(origin: Vector3, radius: float, exclude = null) -> Array:
 	var out: Array = []
 	for e in GameState.world.get_tree().get_nodes_in_group("enemies"):
-		if e == exclude or e.dead:
+		if e == exclude or e.dead or e.dormant:
 			continue
 		var to: Vector3 = e.global_position - origin
 		to.y = 0

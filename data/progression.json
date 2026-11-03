@@ -13,9 +13,9 @@
   "rarities": {
     "_doc": "Data-driven rarity ladder (add a rarity here and in loot_tables.json). Spec names: common = Stock, rare = Patched, special = Overclocked, unique = Root. stat_mult scales base stats; passives = how many passive abilities an item rolls (passives.json); price_mult scales shop prices; order sorts inventories (0 = best). Root items are fused, have their own models and carry a unique effect.",
     "common": {"name": "STOCK", "color": "#a9a294", "stat_mult": 1.0, "passives": 0, "price_mult": 1.0, "order": 3},
-    "rare": {"name": "PATCHED", "color": "#3aa55d", "stat_mult": 1.1, "passives": 1, "price_mult": 1.6, "order": 2},
-    "special": {"name": "OVERCLOCKED", "color": "#3f9cf0", "stat_mult": 1.2, "passives": 2, "price_mult": 2.6, "order": 1},
-    "unique": {"name": "ROOT", "color": "#f0a020", "stat_mult": 1.3, "passives": 2, "price_mult": 4.5, "order": 0}
+    "rare": {"name": "PATCHED", "color": "#4fc46e", "glow": "#8dffa0", "stat_mult": 1.1, "passives": 1, "price_mult": 1.6, "order": 2},
+    "special": {"name": "OVERCLOCKED", "color": "#f08a2c", "glow": "#ff9a3a", "stat_mult": 1.2, "passives": 2, "price_mult": 2.6, "order": 1},
+    "unique": {"name": "ROOT", "color": "#22bcd8", "glow": "#3ff1fe", "stat_mult": 1.3, "passives": 2, "price_mult": 4.5, "order": 0}
   },
   "tiers": {"_doc": "Basic items (\"tiers\": true in item files) expand into these variants; Root items are authored separately.", "common": {"prefix": "", "suffix": ""}, "rare": {"prefix": "Patched ", "suffix": "_patched"}, "special": {"prefix": "Overclocked ", "suffix": "_overclocked"}},
   "loot_modifiers": {"_doc": "Caps for gear bonuses that improve loot. unique_find adds to the Root chance (absolute), rare_find multiplies the chance of Patched-or-better, drop_rate multiplies the item drop chance. Caps keep Root gear rare.", "max_unique_add": 0.03, "max_unique_mult": 2.0, "max_rare_find": 0.5, "max_drop_rate": 0.6},

@@ -86,7 +86,9 @@ func _process(delta: float) -> void:
 func apply_post(p: Dictionary) -> void:
 	_post_base = p
 	post_mat.set_shader_parameter("vignette", float(p.get("vignette", 0.35)))
-	post_mat.set_shader_parameter("scanline", float(p.get("scanline", 0.04)))
+	# every level gets at least a gentle scanline and a little grain (art direction)
+	post_mat.set_shader_parameter("scanline", maxf(0.025, float(p.get("scanline", 0.04))))
+	post_mat.set_shader_parameter("grain", float(p.get("grain", 0.035)))
 	post_mat.set_shader_parameter("tint", MeshFactory.col(p.get("tint", "#ffffff")))
 
 

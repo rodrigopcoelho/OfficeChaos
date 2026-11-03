@@ -41,6 +41,14 @@ func _run() -> void:
 			w.rig.global_position = w.cell_center(s[1])
 			RenderingServer.global_shader_parameter_set("player_pos", w.rig.global_position)
 			await _shoot("%s_%s" % [level_id, s[0]])
+		# wide shots: the whole floor and the world around it, then a level corner
+		w.rig.camera.position = CameraRig.OFFSET * 2.8
+		w.rig.global_position = Vector3(w.width * GameWorld.CELL * 0.5, 0, w.height * GameWorld.CELL * 0.5)
+		await _shoot("%s_overview" % level_id)
+		w.rig.camera.position = CameraRig.OFFSET * 1.4
+		w.rig.global_position = Vector3(w.width * GameWorld.CELL, 0, 0)
+		await _shoot("%s_edge" % level_id)
+		w.rig.camera.position = CameraRig.OFFSET
 
 
 func _shoot(shot_name: String) -> void:

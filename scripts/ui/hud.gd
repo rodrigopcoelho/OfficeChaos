@@ -21,11 +21,9 @@ var portrait: AvatarPortrait
 var status_dot: Panel
 var name_label: Label
 var sub_label: Label
-var hp_bar: ProgressBar
-var hp_text: Label
+var hp_bar: LcdGauge
 var shield_bar: ProgressBar
-var data_bar: ProgressBar
-var data_text: Label
+var data_bar: LcdGauge
 var q_slot: AbilitySlot
 var dodge_slot: AbilitySlot
 var weapon_icon: TextureRect
@@ -49,6 +47,49 @@ var _watched_player: Object = null  # whose expressions the portrait mirrors
 var _weapon_icon_id := ""
 
 
+class LcdGauge extends Control:
+	## A gauge drawn like an old handheld's LCD: dark green glass, a monospace label,
+	## a row of chunky segments (lit / ghosted) and the reading on the right.
+	var max_value := 1.0
+	var value := 1.0
+	var label := "HP"
+	var text := ""
+	var lit := Color("#ff7a5a")
+	var segments := 20
+	const GLASS := Color("#16241c")
+	const GHOST := Color(0.55, 0.8, 0.6, 0.12)
+
+	func _init(lbl: String = "HP", col: Color = Color("#ff7a5a"), h: float = 20.0, segs: int = 20) -> void:
+		label = lbl
+		lit = col
+		segments = segs
+		custom_minimum_size = Vector2(0, h)
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	func _process(_d: float) -> void:
+		queue_redraw()
+
+	func _draw() -> void:
+		var r := Rect2(Vector2.ZERO, size)
+		draw_style_box(UIKit.sb(GLASS, 5, 1, Color(0, 0, 0, 0.5), 0), r)
+		var f := UIKit.font_mono
+		var fs := int(size.y * 0.6)
+		draw_string(f, Vector2(6, size.y * 0.5 + fs * 0.36), label, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color("#9dffb0"))
+		var tw := f.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+		draw_string(f, Vector2(size.x - tw - 6, size.y * 0.5 + fs * 0.36), text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color("#9dffb0"))
+		var x0 := 6.0 + f.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x + 6.0
+		var x1 := size.x - tw - 12.0
+		var seg_w := (x1 - x0) / segments
+		var on := int(ceil(clampf(value / maxf(max_value, 0.0001), 0.0, 1.0) * segments - 0.001))
+		for i in segments:
+			var sr := Rect2(Vector2(x0 + i * seg_w + 1.0, 4.0), Vector2(seg_w - 2.0, size.y - 8.0))
+			draw_rect(sr, lit if i < on else GHOST)
+		# glass sheen + faint LCD scanlines
+		draw_rect(Rect2(Vector2(2, 2), Vector2(size.x - 4, size.y * 0.3)), Color(1, 1, 1, 0.05))
+		for y in range(2, int(size.y), 3):
+			draw_line(Vector2(2, y), Vector2(size.x - 2, y), Color(0, 0, 0, 0.12))
+
+
 class AbilitySlot extends Control:
 	var key := "Q"
 	var title := ""
@@ -61,15 +102,21 @@ class AbilitySlot extends Control:
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 	func _draw() -> void:
+		## A chunky handheld button: beige plastic bezel around a green LCD face.
 		var r := Rect2(Vector2.ZERO, size)
-		draw_style_box(UIKit.sb(Color("#2d2a38"), 10, 2, accent if ratio <= 0.0 else Color("#4a4658"), 0), r)
+		draw_style_box(UIKit.sb(Color("#e9e1cf"), 16, 3, accent if ratio <= 0.0 else Color("#b9ae97"), 0), r)
+		var lcd := Rect2(Vector2(6, 6), size - Vector2(12, 12))
+		draw_style_box(UIKit.sb(LcdGauge.GLASS, 9, 0), lcd)
 		if ratio > 0.0:
-			draw_rect(Rect2(Vector2(2, 2 + (size.y - 4) * (1.0 - ratio)), Vector2(size.x - 4, (size.y - 4) * ratio)), Color(0, 0, 0, 0.45))
-		var f := UIKit.font_bold
-		draw_string(f, Vector2(8, 22), key, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color.WHITE if ratio <= 0.0 else Color(1, 1, 1, 0.5))
+			draw_rect(Rect2(lcd.position + Vector2(0, lcd.size.y * (1.0 - ratio)), Vector2(lcd.size.x, lcd.size.y * ratio)), Color(0, 0, 0, 0.45))
+		var f := UIKit.font_mono
+		var ready_col := Color("#9dffb0")
+		draw_string(f, Vector2(11, 25), key, HORIZONTAL_ALIGNMENT_LEFT, size.x - 16, 14, ready_col if ratio <= 0.0 else Color(ready_col, 0.4))
 		if ratio > 0.0:
-			draw_string(f, Vector2(0, size.y * 0.66), "%.1f" % remaining, HORIZONTAL_ALIGNMENT_CENTER, size.x, 17, Color(1, 1, 1, 0.9))
-		draw_string(UIKit.font_ui, Vector2(0, size.y + 15), title, HORIZONTAL_ALIGNMENT_CENTER, size.x, 11, Color(1, 1, 1, 0.85))
+			draw_string(f, Vector2(0, size.y * 0.72), "%.1f" % remaining, HORIZONTAL_ALIGNMENT_CENTER, size.x, 15, ready_col)
+		for y in range(int(lcd.position.y), int(lcd.end.y), 3):
+			draw_line(Vector2(lcd.position.x, y), Vector2(lcd.end.x, y), Color(0, 0, 0, 0.12))
+		draw_string(f, Vector2(0, size.y + 15), title.to_upper(), HORIZONTAL_ALIGNMENT_CENTER, size.x, 10, Color(1, 1, 1, 0.9))
 
 
 func _ready() -> void:
@@ -198,8 +245,8 @@ func _currency_chip(fill: Color, rim: Color, tip: String) -> Panel:
 
 func _build_profile_card() -> void:
 	var card := PanelContainer.new()
-	# Teams persona card: white, 4 px corners, soft shadow.
-	var card_sb := UIKit.sb(Color(1, 1, 1, 0.97), 4, 1, UIKit.C_BORDER, 12)
+	# Handheld-device card: rounded beige plastic bezel with a soft shadow.
+	var card_sb := UIKit.sb(Color("#e9e1cf"), 18, 3, Color("#b9ae97"), 12)
 	card_sb.shadow_color = Color(0, 0, 0, 0.25)
 	card_sb.shadow_size = 8
 	card_sb.shadow_offset = Vector2(0, 2)
@@ -225,36 +272,17 @@ func _build_profile_card() -> void:
 	var v := UIKit.vbox(4)
 	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	h.add_child(v)
-	name_label = UIKit.label("Employee", 16, UIKit.C_TEXT, true)
+	name_label = UIKit.label("Employee", 16, Color("#2b2840"), true)
 	v.add_child(name_label)
-	sub_label = UIKit.label("", 12, UIKit.C_MUTED)
+	sub_label = UIKit.label("", 11, Color("#6b5e48"))
+	sub_label.add_theme_font_override("font", UIKit.font_mono)
 	v.add_child(sub_label)
 	shield_bar = UIKit.bar(Color("#ff6a5a"), 4, Color(0, 0, 0, 0))
 	v.add_child(shield_bar)
-	var hp_holder := Control.new()
-	hp_holder.custom_minimum_size = Vector2(0, 18)
-	hp_holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	v.add_child(hp_holder)
-	hp_bar = UIKit.bar(UIKit.C_HP, 18, Color(0, 0, 0, 0.1))
-	hp_bar.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	hp_holder.add_child(hp_bar)
-	hp_text = UIKit.label("", 12, Color.WHITE, true)
-	hp_text.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	hp_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	hp_text.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	hp_holder.add_child(hp_text)
-	var data_holder := Control.new()
-	data_holder.custom_minimum_size = Vector2(0, 12)
-	data_holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	v.add_child(data_holder)
-	data_bar = UIKit.bar(UIKit.C_DATA, 12, Color(0, 0, 0, 0.1))
-	data_bar.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	data_holder.add_child(data_bar)
-	data_text = UIKit.label("", 10, UIKit.C_TEXT, true)
-	data_text.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	data_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	data_text.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	data_holder.add_child(data_text)
+	hp_bar = LcdGauge.new("HP", Color("#ff7a5a"), 22, 20)
+	v.add_child(hp_bar)
+	data_bar = LcdGauge.new("DATA", Color("#40f2ff"), 16, 24)
+	v.add_child(data_bar)
 
 
 func _build_abilities() -> void:
@@ -263,7 +291,7 @@ func _build_abilities() -> void:
 	h.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(h)
 	var wp := PanelContainer.new()
-	wp.add_theme_stylebox_override("panel", UIKit.sb(Color("#2d2a38"), 10, 2, Color("#4a4658"), 2))
+	wp.add_theme_stylebox_override("panel", UIKit.sb(Color("#e9e1cf"), 16, 3, Color("#b9ae97"), 6))
 	wp.custom_minimum_size = Vector2(64, 64)
 	wp.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	weapon_icon = TextureRect.new()
@@ -273,7 +301,8 @@ func _build_abilities() -> void:
 	wp.add_child(weapon_icon)
 	var wv := UIKit.vbox(2)
 	wv.add_child(wp)
-	weapon_label = UIKit.label("", 11, Color(1, 1, 1, 0.85))
+	weapon_label = UIKit.label("", 10, Color(1, 1, 1, 0.9))
+	weapon_label.add_theme_font_override("font", UIKit.font_mono)
 	weapon_label.custom_minimum_size.x = 64
 	weapon_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	weapon_label.clip_text = true
@@ -396,7 +425,7 @@ func _refresh_profile() -> void:
 	var need := GameState.xp_needed(lvl)
 	data_bar.max_value = need
 	data_bar.value = int(pr.xp)
-	data_text.text = "DATA %d / %d" % [int(pr.xp), need]
+	data_bar.text = "%d/%d" % [int(pr.xp), need]
 	var armor := GameState.equipped("chest")
 	var helmet := GameState.equipped("helmet")
 	var sig := "%s|%s|%s|%s" % [JSON.stringify(pr.appearance), armor.get("id", ""), helmet.get("id", ""), status]
@@ -441,7 +470,7 @@ func _process(delta: float) -> void:
 	if p != null and is_instance_valid(p):
 		hp_bar.max_value = p.max_hp
 		hp_bar.value = p.hp
-		hp_text.text = "%d / %d HP" % [int(ceil(p.hp)), int(p.max_hp)]
+		hp_bar.text = "%d/%d" % [int(ceil(p.hp)), int(p.max_hp)]
 		shield_bar.visible = p.shield_max > 0.0
 		shield_bar.max_value = maxf(p.shield_max, 1.0)
 		shield_bar.value = p.shield

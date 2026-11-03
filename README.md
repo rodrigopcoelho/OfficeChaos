@@ -5,6 +5,13 @@ Built with **Godot 4.7** + **Blender 4.5** (driven headless from the terminal) u
 
 ## Art style
 
+**Direction:** late-90s digital-world anime (Digimon Adventure season 1) meets the office: cel shading with bold outlines and flat two-tone shadows, vivid primaries against deep indigo and purple voids, cyan / neon-green data effects, soft film grain and a gentle CRT scanline. No gloss, no heavy bloom.
+
+- **The world beyond the walls** (`scripts/world/backdrop.gd`): every level floats over a machine wilderness: a data-stream ocean with a wireframe grid (`shaders/data_ocean.gdshader`), floating islands with circuit-vein forests, pixel deserts, giant file folders, clock towers, server monoliths and glowing data-gates, plus binary drifting up from the void. Islands fade into the void with depth. Tune per level with `"backdrop": {"biomes": [...], "islands": N, "ocean_deep": ..., "void": ...}` or switch it off with `"no_backdrop": true`.
+- **Digitizing:** defeated enemies dissolve into rising 0s and 1s with sweeping scan rings and pixel fragments; hits throw chunky pixel bursts and a cyan scan-line flash.
+- **Tier glow:** Stock none, Patched soft green, Overclocked orange, Root cyan circuit veins with a glitch flicker (the reserved colour `#3ff1fe` flickers in `toon.gdshader`) and unstable glitch edges. Inventory icons carry the same glow.
+- **HUD:** a 90s handheld: beige plastic bezels, green LCD gauges with segments and monospace labels. Menus keep the Teams-style office look.
+
 The look is a flat, illustrated toon style:
 - `shaders/toon.gdshader` gives one hard light/shadow step. The shadow colour comes from each level's ambient tint.
 - `shaders/outline.gdshader` draws inverted-hull ink lines.
